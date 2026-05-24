@@ -43,7 +43,7 @@ fi
 # same key is baked into every release binary via -ldflags so `mcpgate update`
 # applies the identical check.
 SIGNING_PUBKEY_PEM='-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAckyuOanVl+8ciri42lcN20kZd95xwAUZN88ualFjl4Q=
+MCowBQYDK2VwAyEATLE/mKPX5XUUhOh6XN6T0XOvn2zKGyte4YyMFEa9bHk=
 -----END PUBLIC KEY-----'
 
 # ── OS / arch detection ────────────────────────────────────────────────────────
