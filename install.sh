@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# install.sh — quick installer for mcpgate
+# install.sh — quick installer for MCPGate
 #
-# Downloads the latest mcpgate release binary from the public releases
+# Downloads the latest MCPGate release binary from the public releases
 # repository and installs it to ~/.local/bin.
 #
 # Usage:
@@ -97,7 +97,7 @@ if [ -z "${VERSION:-}" ] || [ "${VERSION}" = "null" ]; then
   exit 1
 fi
 
-echo "Installing mcpgate ${VERSION} for ${OS}/${ARCH}…"
+echo "Installing MCPGate ${VERSION} for ${OS}/${ARCH}…"
 
 # ── Download URLs ──────────────────────────────────────────────────────────────
 # Archive name matches GoReleaser default: mcpgate_<version>_<os>_<arch>.tar.gz
@@ -211,7 +211,7 @@ chmod +x "${TMP_DIR}/${BIN_NAME}" 2>/dev/null || true
 mv "${TMP_DIR}/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}"
 
 echo ""
-echo "✓ mcpgate ${VERSION} installed → ${INSTALL_DIR}/${BIN_NAME}"
+echo "✓ MCPGate ${VERSION} installed → ${INSTALL_DIR}/${BIN_NAME}"
 echo ""
 
 # ── PATH check ─────────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ fi
 
 # ── macOS Gatekeeper notice ────────────────────────────────────────────────────
 if [ "${OS}" = "darwin" ]; then
-  echo "ℹ  macOS users: if Gatekeeper blocks mcpgate, remove the quarantine flag:"
+  echo "ℹ  macOS users: if Gatekeeper blocks the mcpgate binary, remove the quarantine flag:"
   echo ""
   echo "     xattr -d com.apple.quarantine \"${INSTALL_DIR}/mcpgate\""
   echo ""
