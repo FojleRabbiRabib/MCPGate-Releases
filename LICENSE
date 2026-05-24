@@ -1,0 +1,58 @@
+MCPGate — Proprietary End-User Licence
+Copyright © 2026 Fojle Rabbi. All rights reserved.
+
+This software (the "Software") and the binaries published in this repository
+are proprietary works of authorship owned by the copyright holder. They are
+NOT open source. No permissive licence is granted, and no rights are granted
+by implication, estoppel, or otherwise except as expressly set out below.
+
+1.  Permitted use.
+    The copyright holder grants the recipient a non-exclusive, non-transferable,
+    revocable right to install and run the unmodified binary for the use case
+    they were specifically authorised for. Any other use requires prior written
+    permission.
+
+2.  Prohibited acts. The following are strictly prohibited:
+    a) copying, redistributing, sublicensing, selling, or making the Software
+       (or any portion of it) available to third parties;
+    b) mirroring, repackaging, rehosting, or republishing the binaries or any
+       artefacts in this repository;
+    c) reverse engineering, decompiling, disassembling, or otherwise attempting
+       to derive the source code from the binaries, except to the limited extent
+       that such activity cannot be lawfully prohibited under applicable law;
+    d) removing, altering, or obscuring any copyright, trademark, or attribution
+       notices;
+    e) using the Software to build a competing product or service;
+    f) using the name "MCPGate" or the maintainer's name to endorse or promote
+       derivative work without prior written permission.
+
+3.  Source code.
+    The source code is maintained in a separate private repository. Access to
+    the source code is restricted to authorised contributors and is governed by
+    a separate agreement. Possession of the binaries does not grant any right
+    to access, view, or receive the source code.
+
+4.  No warranty.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+5.  Limitation of liability.
+    IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+    OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE,
+    ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+
+6.  Termination.
+    This licence terminates automatically upon any breach. Upon termination
+    the recipient must immediately cease all use of the Software and destroy
+    all copies in their possession.
+
+7.  Governing law.
+    This licence is governed by the laws of the jurisdiction of the copyright
+    holder's principal residence, without reference to its conflict-of-law
+    provisions.
+
+For licensing enquiries, partnership requests, or any use case not covered by
+the permitted use above, contact the maintainer via the GitHub profile at
+https://github.com/FojleRabbiRabib.

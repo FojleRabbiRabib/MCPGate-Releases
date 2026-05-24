@@ -3,8 +3,24 @@
 This repository hosts compiled binaries and the installer for **MCPGate** — an
 enterprise-grade MCP bridge and agent server written in Go.
 
-> **Source code** lives at [`FojleRabbiRabib/MCPGate`](https://github.com/FojleRabbiRabib/MCPGate) (private).
-> **Bug reports and feature requests** → open an issue there.
+> **Source code** is in a private repository.
+> **All public interactions — bug reports, feature requests, install issues,
+> usage questions — happen in [this repo's Issues tab](../../issues).**
+> Please do not email the maintainer directly for non-security matters; opening
+> an issue keeps the conversation visible to other users and the changelog.
+> Security-sensitive findings are the one exception — see *Reporting a Security Issue* below.
+
+---
+
+## License
+
+MCPGate is **proprietary software**. © 2026 Fojle Rabbi. All rights reserved.
+See [LICENSE](LICENSE) for the full terms.
+
+The binaries published in this repository are made available solely for
+authorised use. **Redistribution, reverse engineering, decompilation, mirroring,
+or repackaging in any form is prohibited** without prior written permission
+from the copyright holder. Use of the binary implies acceptance of these terms.
 
 ---
 
@@ -17,8 +33,14 @@ curl -fsSL https://raw.githubusercontent.com/FojleRabbiRabib/MCPGate-Releases/ma
 ```
 
 The script automatically detects your OS and architecture, downloads the correct
-binary, verifies the SHA256 checksum, installs to `~/.local/bin/mcpgate`, and
-warns if that directory is not in your `PATH`.
+binary, verifies the **SHA256 checksum AND the offline ed25519 signature**
+against the maintainer's public key embedded in the script, installs to
+`~/.local/bin/mcpgate`, and warns if that directory is not in your `PATH`.
+
+> The signing public key is reproduced inside `install.sh` and matches the
+> key baked into every release binary. The private half never touches CI or
+> any online system — a compromise of this releases repository cannot mint
+> binaries the installer or the `mcpgate update` command will trust.
 
 ### Specific version
 
@@ -40,15 +62,21 @@ verify the checksum, and extract the binary:
 ```bash
 VERSION=v1.0.0
 PLATFORM=linux_amd64
+ARCHIVE=mcpgate_${VERSION}_${PLATFORM}.tar.gz
+BASE=https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}
 
-curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/mcpgate_${VERSION}_${PLATFORM}.tar.gz"
-curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/checksums.txt"
+curl -LO "${BASE}/${ARCHIVE}"
+curl -LO "${BASE}/${ARCHIVE}.sha256"
+curl -LO "${BASE}/${ARCHIVE}.sig"
 
 # Verify checksum
-grep "mcpgate_${VERSION}_${PLATFORM}.tar.gz" checksums.txt | sha256sum --check
+sha256sum --check ${ARCHIVE}.sha256
+
+# Verify ed25519 signature (see "Verifying a release manually" for signing.pub)
+openssl pkeyutl -verify -pubin -inkey signing.pub -rawin -in ${ARCHIVE} -sigfile ${ARCHIVE}.sig
 
 # Extract and install
-tar -xzf "mcpgate_${VERSION}_${PLATFORM}.tar.gz" --strip-components=1 mcpgate
+tar -xzf "${ARCHIVE}" --strip-components=1 mcpgate
 chmod +x mcpgate
 mv mcpgate ~/.local/bin/mcpgate
 ```
@@ -63,12 +91,29 @@ mv mcpgate ~/.local/bin/mcpgate
 | Linux | arm64 | `mcpgate_<version>_linux_arm64.tar.gz` |
 | macOS | x86_64 (Intel) | `mcpgate_<version>_darwin_amd64.tar.gz` |
 | macOS | Apple Silicon | `mcpgate_<version>_darwin_arm64.tar.gz` |
+| Windows | x86_64 (amd64) | `mcpgate_<version>_windows_amd64.zip` |
+| Windows | arm64 | `mcpgate_<version>_windows_arm64.zip` |
 
-Each release includes a `checksums.txt` with SHA256 hashes for every archive.
-The installer and `mcpgate update` both verify checksums before installation.
+Each release ships:
 
-> **Windows** is not natively supported. Use [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
-> or Git Bash and run the installer from there.
+- `<archive>` — the binary tarball / zip itself.
+- `<archive>.sha256` — per-asset SHA256 checksum (GoReleaser `split: true`).
+- `<archive>.sig` — ed25519 signature over the archive bytes, produced
+  offline by the maintainer with `openssl pkeyutl -sign -inkey signing.key`.
+- `<archive>.sbom.spdx.json` — SPDX-JSON Software Bill of Materials.
+
+Both `install.sh` and `mcpgate update` verify the SHA256 **and** the ed25519
+signature before touching the running binary. A release missing its `.sig`
+files is treated as untrusted and refused — the maintainer signs releases
+locally after CI publishes the archives, so freshly-tagged releases may
+appear on this page for a few minutes before becoming installable.
+
+> **Windows native:** the installer auto-detects Git Bash / MSYS / Cygwin
+> environments and fetches the `.zip` archive. Native installs without a
+> POSIX shell aren't supported by `install.sh`; download the zip from the
+> Releases page directly, extract `mcpgate.exe`, and place it on `PATH`.
+> systemd-style service install (`mcpgate service install`) is Linux-only;
+> Windows operators can wrap the binary with NSSM or WinSW.
 
 ---
 
@@ -124,9 +169,11 @@ mcpgate update --dry-run
 mcpgate update --channel beta
 ```
 
-The updater downloads the new binary, verifies its SHA256 checksum, and
-atomically replaces the running binary. No root access is required when installed
-under `~/.local/bin`.
+The updater downloads the new binary, verifies its SHA256 checksum, verifies
+the ed25519 `.sig` against the public key baked into the running binary, and
+only then atomically replaces itself. A release without a `.sig` (or with a
+signature that doesn't match) is refused — no installation, no rollback
+required. No root access is required when installed under `~/.local/bin`.
 
 ---
 
@@ -134,43 +181,86 @@ under `~/.local/bin`.
 
 All endpoints require `Authorization: Bearer <key>` unless `--no-auth` is set.
 
-**Bridge mode** — proxy a local stdio MCP process over HTTP:
+Endpoints are unified: `/sse` (legacy SSE 2024-11-05) and `/mcp` (Streamable
+HTTP 2025-11-25) both accept a `?mode=` query parameter (default `agent`).
+
+**Agent mode** (built-in tool suite, no subprocess):
 
 ```
-GET /sse?command=npx&args=-y,@modelcontextprotocol/server-filesystem,/my/workspace
-Authorization: Bearer mcpg_<key>
+GET  /sse?workspace=/my/workspace
+POST /mcp?workspace=/my/workspace
+Authorization: Bearer <key>
 ```
 
-**Agent mode** — use mcpgate's built-in ~60 tool suite directly:
+**Bridge mode** (proxy a local stdio MCP process):
 
 ```
-GET /agent?workspace=/my/workspace
-Authorization: Bearer mcpg_<key>
+GET  /sse?mode=bridge&command=npx&args=-y%20@modelcontextprotocol/server-filesystem%20.&workspace=/my/workspace
+POST /mcp?mode=bridge&command=php&args=artisan%20boost:mcp&workspace=/my/project
+Authorization: Bearer <key>
 ```
 
-Both modes support SSE (`/sse`, `/agent`) and Streamable HTTP (`/mcp`, `/mcp/agent`).
+**Boost mode** (stdio MCP process + built-in agent tools merged):
+
+```
+POST /mcp?mode=boost&command=php&args=artisan%20boost:mcp&workspace=/my/project
+Authorization: Bearer <key>
+```
+
+> **`args`** is whitespace-separated (URL-encode spaces as `%20`).
+> **`workspace`** is the project root and **doubles as the subprocess working
+> directory** in bridge/boost modes — there is no separate `cwd` parameter.
+> Bridge/boost subprocess communication uses newline-delimited JSON per the
+> MCP stdio transport spec, so every spec-compliant MCP server works out of
+> the box (`@modelcontextprotocol/server-*`, Laravel Boost, Python `mcp`-SDK
+> servers, custom Go/Rust servers).
 
 ---
 
 ## Verifying a release manually
 
-Every release ships a `checksums.txt` in standard GoReleaser format:
+Two checks: SHA256 (catches bit-rot and casual tampering) and ed25519
+signature (the actual trust anchor).
 
-```
-<sha256hex>  mcpgate_v1.0.0_linux_amd64.tar.gz
-<sha256hex>  mcpgate_v1.0.0_linux_arm64.tar.gz
-...
-```
+### 1. Checksum
 
-To verify your download:
+Per-asset `.sha256` files ship alongside each archive (GoReleaser
+`split: true`):
 
 ```bash
-# Linux
-sha256sum --check --ignore-missing checksums.txt
+VERSION=v1.0.0
+PLATFORM=linux_amd64
+ARCHIVE=mcpgate_${VERSION}_${PLATFORM}.tar.gz
 
-# macOS
-shasum -a 256 --check --ignore-missing checksums.txt
+curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/${ARCHIVE}"
+curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/${ARCHIVE}.sha256"
+sha256sum --check ${ARCHIVE}.sha256        # Linux
+shasum -a 256 --check ${ARCHIVE}.sha256    # macOS
 ```
+
+### 2. Ed25519 signature
+
+Save the maintainer's public key to a file (also reproduced in `install.sh`):
+
+```bash
+cat > signing.pub <<'EOF'
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAckyuOanVl+8ciri42lcN20kZd95xwAUZN88ualFjl4Q=
+-----END PUBLIC KEY-----
+EOF
+```
+
+Then download the `.sig` and verify:
+
+```bash
+curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/${ARCHIVE}.sig"
+openssl pkeyutl -verify -pubin -inkey signing.pub -rawin -in ${ARCHIVE} -sigfile ${ARCHIVE}.sig
+# → "Signature Verified Successfully"
+```
+
+A successful verification means the archive came from the maintainer's
+offline private key — not from anyone who happened to be able to write to
+this GitHub release.
 
 ---
 
@@ -181,9 +271,22 @@ download links.
 
 ---
 
+## Reporting a Security Issue
+
+Security-sensitive findings **must not** be filed as public issues. Email the
+maintainer directly via the address on the GitHub profile linked below, and
+expect acknowledgement within 48 hours. See the project's internal SECURITY
+policy for severity-based response targets.
+
+---
+
 ## Maintained by
 
 **Fojle Rabbi** — [@FojleRabbiRabib](https://github.com/FojleRabbiRabib)
 
-For questions, bug reports, or feature requests open an issue in the
-[source repository](https://github.com/FojleRabbiRabib/MCPGate).
+- **Bug reports, feature requests, install / usage questions** → [open an issue here](../../issues)
+- **Security findings** → see *Reporting a Security Issue* above
+- **General contact** → GitHub profile
+
+The source repository is private; please do not attempt to open issues or
+pull requests there.

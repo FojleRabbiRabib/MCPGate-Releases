@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/FojleRabbiRabib/MCPGate-Releases/security/advisories/new
+    about: Report a security issue PRIVATELY via GitHub Security Advisories — do not open a public issue.
+  - name: Installation or usage question
+    url: https://github.com/FojleRabbiRabib/MCPGate-Releases/issues/new
+    about: Open a regular issue if no template fits — just describe what you're trying to do.
+  - name: Licensing / partnership enquiry
+    url: https://github.com/FojleRabbiRabib
+    about: Contact the maintainer via the GitHub profile for non-public licensing questions.
