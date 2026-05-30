@@ -1,5 +1,11 @@
 # MCPGate — Releases
 
+[![Latest Release](https://img.shields.io/github/v/release/FojleRabbiRabbi/MCPGate-Releases?label=latest)](../../releases)
+[![Downloads](https://img.shields.io/github/downloads/FojleRabbiRabbi/MCPGate-Releases/total?label=downloads)](../../releases)
+[![Downloads (latest)](https://img.shields.io/github/downloads/FojleRabbiRabbi/MCPGate-Releases/latest/total?label=downloads%20%28latest%29)](../../releases)
+[![License](https://img.shields.io/badge/license-proprietary-red)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/FojleRabbiRabbi/MCPGate-Releases?style=flat)](../../stargazers)
+
 This repository hosts compiled binaries and the installer for **MCPGate** — an
 enterprise-grade MCP bridge and agent server written in Go.
 
@@ -9,18 +15,6 @@ enterprise-grade MCP bridge and agent server written in Go.
 > Please do not email the maintainer directly for non-security matters; opening
 > an issue keeps the conversation visible to other users and the changelog.
 > Security-sensitive findings are the one exception — see *Reporting a Security Issue* below.
-
----
-
-## License
-
-MCPGate is **proprietary software**. © 2026 Fojle Rabbi. All rights reserved.
-See [LICENSE](LICENSE) for the full terms.
-
-The binaries published in this repository are made available solely for
-authorised use. **Redistribution, reverse engineering, decompilation, mirroring,
-or repackaging in any form is prohibited** without prior written permission
-from the copyright holder. Use of the binary implies acceptance of these terms.
 
 ---
 
@@ -317,3 +311,10 @@ policy for severity-based response targets.
 
 The source repository is private; please do not attempt to open issues or
 pull requests there.
+
+---
+
+## License
+
+MCPGate is **proprietary software**. © 2026 Fojle Rabbi. All rights reserved.
+See [LICENSE](LICENSE) for full terms.
