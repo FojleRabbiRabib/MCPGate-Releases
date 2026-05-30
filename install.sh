@@ -13,6 +13,10 @@
 # To install to a custom directory:
 #   INSTALL_DIR=/usr/local/bin bash install.sh  (requires appropriate permissions)
 #
+# Skip the root-user confirmation prompt:
+#   bash install.sh -y
+#   bash install.sh --yes
+#
 # Note for macOS users: if Gatekeeper blocks the binary run:
 #   xattr -d com.apple.quarantine "${INSTALL_DIR}/mcpgate"
 
@@ -20,6 +24,15 @@ set -euo pipefail
 
 RELEASES_REPO="FojleRabbiRabib/MCPGate-Releases"
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
+SKIP_CONFIRM=0
+
+# ── Flag parsing ───────────────────────────────────────────────────────────────
+for arg in "$@"; do
+  case "${arg}" in
+    -y|--yes) SKIP_CONFIRM=1 ;;
+    *) echo "Unknown option: ${arg}" >&2; echo "Usage: bash install.sh [-y|--yes]" >&2; exit 1 ;;
+  esac
+done
 
 # ── Dependency checks ──────────────────────────────────────────────────────────
 if ! command -v curl >/dev/null 2>&1; then
@@ -76,6 +89,21 @@ case "${OS}" in
     exit 1
     ;;
 esac
+
+# ── Root user guard ────────────────────────────────────────────────────────────
+if [ "$(id -u)" -eq 0 ] && [ "${SKIP_CONFIRM}" -eq 0 ]; then
+  echo ""
+  echo "WARNING: Running installer as root."
+  echo "   This will install MCPGate with elevated privileges."
+  echo "   The default install location (~/.local/bin) does not require root."
+  echo ""
+  printf "Continue anyway? [y/N] "
+  read -r confirm
+  if [ "${confirm}" != "y" ] && [ "${confirm}" != "Y" ]; then
+    echo "Aborting."
+    exit 1
+  fi
+fi
 
 # ── Version resolution ─────────────────────────────────────────────────────────
 if [ -z "${VERSION:-}" ]; then

@@ -156,6 +156,33 @@ On first start mcpgate creates `~/.mcpgate/` with:
 
 ---
 
+## Web dashboard
+
+MCPGate ships a React + TypeScript management dashboard embedded in the binary.
+Access it at **`/manage`** after starting the server.
+
+```
+http://127.0.0.1:8080/manage
+```
+
+Login with your master API key. The dashboard provides:
+
+- **Overview** — server KPIs (active sessions / cap, health checks, root-user warning)
+- **Sessions** — live session table with kill action and confirm dialog
+- **Audits** — filterable tool invocation log with search, date range, severity, and clear-all
+- **Tasks** — kanban board with bulk-select, create/edit dialog, subtask checklist, priority and progress
+- **Settings** — key rotation, update-available banner, connection status
+
+The dashboard receives live updates via SSE from `/api/events` and supports dark/light theme.
+
+By default the dashboard is loopback-only. To expose it behind a reverse proxy:
+
+```bash
+mcpgate serve --dashboard-public --dashboard-allow 10.0.0.0/8
+```
+
+---
+
 ## Self-update
 
 ```bash
