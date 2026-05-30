@@ -1,10 +1,10 @@
 # MCPGate — Releases
 
-[![Latest Release](https://img.shields.io/github/v/release/FojleRabbiRabbi/MCPGate-Releases?label=latest)](../../releases)
-[![Downloads](https://img.shields.io/github/downloads/FojleRabbiRabbi/MCPGate-Releases/total?label=downloads)](../../releases)
-[![Downloads (latest)](https://img.shields.io/github/downloads/FojleRabbiRabbi/MCPGate-Releases/latest/total?label=downloads%20%28latest%29)](../../releases)
+[![Latest Release](https://img.shields.io/github/v/release/FojleRabbiRabib/MCPGate-Releases?label=latest)](../../releases)
+[![Downloads](https://img.shields.io/github/downloads/FojleRabbiRabib/MCPGate-Releases/total?label=downloads)](../../releases)
+[![Downloads (latest)](https://img.shields.io/github/downloads/FojleRabbiRabib/MCPGate-Releases/latest/total?label=downloads%20%28latest%29)](../../releases)
 [![License](https://img.shields.io/badge/license-proprietary-red)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/FojleRabbiRabbi/MCPGate-Releases?style=flat)](../../stargazers)
+[![Stars](https://img.shields.io/github/stars/FojleRabbiRabib/MCPGate-Releases?style=flat)](../../stargazers)
 
 This repository hosts compiled binaries and the installer for **MCPGate** — an
 enterprise-grade MCP bridge and agent server written in Go.
