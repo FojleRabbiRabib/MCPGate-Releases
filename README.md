@@ -164,7 +164,7 @@ Login with your master API key. The dashboard provides:
 - **Overview** — server KPIs (active sessions / cap, health checks, root-user warning)
 - **Sessions** — live session table with kill action and confirm dialog
 - **Audits** — filterable tool invocation log with search, date range, severity, and clear-all
-- **Tasks** — kanban board with bulk-select, create/edit dialog, subtask checklist, priority and progress
+- **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtask checklist (drag-to-reorder, per-subtask status), inter-task dependency graph (blocked-by picker, done-block guard), priority and progress
 - **Settings** — key rotation, update-available banner, connection status
 
 The dashboard receives live updates via SSE from `/api/events` and supports dark/light theme.
