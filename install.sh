@@ -73,7 +73,7 @@ case "${ARCH}" in
 esac
 
 case "${OS}" in
-  linux|darwin)
+  linux|darwin|freebsd)
     ARCHIVE_EXT="tar.gz"
     ;;
   mingw*|msys*|cygwin*)
@@ -83,7 +83,7 @@ case "${OS}" in
     ;;
   *)
     echo "Error: unsupported OS: ${OS}" >&2
-    echo "Linux, macOS, and Windows (Git Bash / MSYS / Cygwin) are supported." >&2
+    echo "Linux, macOS, FreeBSD, and Windows (Git Bash / MSYS / Cygwin) are supported." >&2
     echo "Native Windows without a POSIX shell: download the zip from the" >&2
     echo "Releases page directly and extract mcpgate.exe onto your PATH." >&2
     exit 1
@@ -129,13 +129,13 @@ echo "Installing MCPGate ${VERSION} for ${OS}/${ARCH}…"
 
 # ── Download URLs ──────────────────────────────────────────────────────────────
 # Archive name matches GoReleaser default: mcpgate_<version>_<os>_<arch>.tar.gz
-# Per-asset SHA256 lives at <archive>.sha256 (GoReleaser split: true).
+# All platform SHA256 digests are in a single checksums.txt (GoReleaser default).
 # Per-asset ed25519 signature lives at <archive>.sig (uploaded by
 # `make sign-release` after the maintainer signs locally).
 ARCHIVE_NAME="mcpgate_${VERSION}_${OS}_${ARCH}.${ARCHIVE_EXT}"
 BASE_URL="https://github.com/${RELEASES_REPO}/releases/download/${VERSION}"
 DOWNLOAD_URL="${BASE_URL}/${ARCHIVE_NAME}"
-CHECKSUM_URL="${BASE_URL}/${ARCHIVE_NAME}.sha256"
+CHECKSUM_URL="${BASE_URL}/checksums.txt"
 SIGNATURE_URL="${BASE_URL}/${ARCHIVE_NAME}.sig"
 
 # ── Temp workspace ─────────────────────────────────────────────────────────────
@@ -147,13 +147,17 @@ curl -fsSL --retry 3 --retry-delay 2 -o "${TMP_DIR}/${ARCHIVE_NAME}" "${DOWNLOAD
 
 # ── Checksum verification ──────────────────────────────────────────────────────
 echo "Verifying SHA256…"
-curl -fsSL --retry 3 --retry-delay 2 -o "${TMP_DIR}/${ARCHIVE_NAME}.sha256" "${CHECKSUM_URL}" \
-  || { echo "Error: failed to download ${ARCHIVE_NAME}.sha256" >&2; exit 1; }
+curl -fsSL --retry 3 --retry-delay 2 -o "${TMP_DIR}/checksums.txt" "${CHECKSUM_URL}" \
+  || { echo "Error: failed to download checksums.txt" >&2; exit 1; }
 
-# GoReleaser writes "<hex>  <filename>" — take the first field.
-EXPECTED_HASH="$(awk '{print $1}' "${TMP_DIR}/${ARCHIVE_NAME}.sha256" | head -n1)"
+# checksums.txt is in sha256sum format: "<hex>  <filename>" (one line per archive).
+# Strip a leading '*' that some tools emit before the filename, then find our archive.
+EXPECTED_HASH="$(grep -E "(^| )\\*?${ARCHIVE_NAME}( |\$)" "${TMP_DIR}/checksums.txt" \
+  | awk '{print $1}' | head -n1)"
 if [ -z "${EXPECTED_HASH}" ]; then
-  echo "Error: ${ARCHIVE_NAME}.sha256 is empty or malformed." >&2
+  echo "Error: checksums.txt has no entry for ${ARCHIVE_NAME}." >&2
+  echo "Contents of checksums.txt:" >&2
+  cat "${TMP_DIR}/checksums.txt" >&2
   exit 1
 fi
 
@@ -243,7 +247,19 @@ echo "✓ MCPGate ${VERSION} installed → ${INSTALL_DIR}/${BIN_NAME}"
 echo ""
 
 # ── PATH check ─────────────────────────────────────────────────────────────────
-if ! echo ":${PATH}:" | grep -q ":${INSTALL_DIR}:"; then
+# Two-step check: grep for the install dir in $PATH, then confirm with
+# `command -v` to avoid false-positives on Git Bash where the same directory
+# may appear in PATH as either MSYS2-style (/c/Users/…) or Windows-style
+# (C:\Users\…) depending on how PATH was set.
+PATH_OK=0
+if echo ":${PATH}:" | grep -q ":${INSTALL_DIR}:"; then
+  PATH_OK=1
+fi
+if [ "${PATH_OK}" -eq 0 ] && command -v mcpgate >/dev/null 2>&1; then
+  PATH_OK=1
+fi
+
+if [ "${PATH_OK}" -eq 0 ]; then
   echo "⚠  ${INSTALL_DIR} is not in your PATH."
   echo "   Add the following line to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
   echo ""
