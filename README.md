@@ -287,8 +287,9 @@ this GitHub release.
 
 ## Release history
 
-See the [Releases](../../releases) page for the full changelog and per-release
-download links.
+See [CHANGELOG.md](CHANGELOG.md) for the full version history with detailed
+release notes. The [Releases](../../releases) page has per-release download
+links and attached assets.
 
 ---
 
