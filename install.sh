@@ -279,8 +279,21 @@ fi
 
 # ── Next steps ─────────────────────────────────────────────────────────────────
 echo "Next steps:"
-echo "  1. mcpgate service install"
-echo "  2. mcpgate service enable"
-echo "  3. mcpgate service start"
+if [ "${OS}" = "windows" ]; then
+  echo "  Register mcpgate as a Windows Service (requires an Administrator prompt):"
+  echo "    mcpgate service install   # auto-start on boot, restart on failure"
+  echo "    mcpgate service start     # start it now"
+else
+  echo "  1. mcpgate service install"
+  if [ "${OS}" = "freebsd" ]; then
+    echo "  2. mcpgate service enable"
+    echo "  3. mcpgate service start"
+    echo ""
+    echo "  (Or start manually: mcpgate serve)"
+  else
+    echo "  2. mcpgate service enable"
+    echo "  3. mcpgate service start"
+  fi
+fi
 echo ""
 echo "Run 'mcpgate --help' to get started."

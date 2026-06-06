@@ -7,6 +7,80 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.0] — 2026-06-06
+
+### Security
+
+- **OAuth token hashing at rest:** Access and refresh tokens are now stored as
+  SHA-256 hashes. An attacker with read access to `mcpgate.db` can no longer
+  obtain live tokens. Existing tokens are invalidated on first upgrade; clients
+  must re-authenticate.
+
+- **ECDSA / ES256 JWT support:** The external OAuth verifier now handles EC
+  public keys (ES256/ES384/ES512). IdPs that default to ES256 — Auth0, Okta,
+  Google, Keycloak — previously rejected every bearer token with `kid not found`.
+
+- **patch_subtask cross-workspace isolation:** The `remove`, `status`, `update`,
+  and `move` operations now verify that the target subtask belongs to the
+  declared parent task before mutating. Previously a caller could combine a
+  valid `task_id` with a `subtask_id` from a different workspace.
+
+- **HTTP client timeouts for web_search / web_fetch / OAuth verifier:** A
+  dedicated `http.Client` with dial, TLS, and response-header deadlines
+  prevents a stalled TCP connection from pinning a goroutine indefinitely.
+
+- **Windows deny-list fix (`os.UserHomeDir`):** `os.Getenv("HOME")` returns
+  empty on Windows. The security deny-list entries (`.ssh`, `.aws`, `.mcpgate`,
+  etc.) now resolve correctly via `os.UserHomeDir`. Windows-specific paths
+  (`System32`, `ProgramFiles`, `AppData`) are also added to the default list.
+
+### Fixed
+
+- Migration 009 (`blocked_by` cascade trigger) was on disk but missing from
+  the migration order — deleting a task no longer leaves ghost blockers.
+- `cmd.WaitDelay` set to 5 s in subprocess spawner — a hung subprocess no
+  longer blocks `cmd.Wait` indefinitely.
+- Tool `commandTimeout` config is now propagated to all subprocess-based tools
+  (was hardcoded 5 min).
+- `mcpgate init` now writes `tools.mode` / `tools.enabled` (was writing
+  non-existent fields with no effect).
+- LoopbackOnly middleware returns `403` instead of `404` for misconfigured
+  reverse-proxy deployments.
+- Dashboard update-status cache cleared on `POST /api/reload`.
+- Tool rate limiter (`tools.rateLimit` config) is now actually enforced at
+  dispatch time.
+- Unsaved subtask draft no longer fires a `DELETE` API request on discard.
+- Enter key in subtask input no longer submits the parent task form.
+
+### Added
+
+- **Native Windows Service:** `mcpgate service install/uninstall/start/stop/
+  restart/status` now integrates with the Windows SCM directly — Automatic
+  start type, restart-on-failure. No NSSM or WinSW required.
+- **Windows subprocess graceful shutdown:** Bridge/boost subprocesses receive
+  `CTRL_BREAK_EVENT` with a 3 s window before hard kill.
+- **FreeBSD support:** `freebsd/amd64` added to release build matrix.
+- **Consolidated `checksums.txt`:** Single `sha256sum`-format file replaces
+  per-archive `.sha256` files.
+- **Brave Search and Tavily web_search providers:** Configure via
+  `MCPGATE_BRAVE_API_KEY` / `MCPGATE_TAVILY_API_KEY` env vars, config file,
+  or `--brave-api-key` / `--tavily-api-key` CLI flags. Falls back to
+  DuckDuckGo when no key is set.
+- **20 new MCP tools:** `list_allowed_commands`, `session_info`, `check_format`,
+  `sort_imports`, `crop_image`, `image_optimize`, `image_thumbnail`, `adb_pull`,
+  `adb_push`, `adb_screenshot`, `laravel_env_check`, `laravel_routes`,
+  `laravel_tinker_eval`, `npm_outdated`, `npm_uninstall`, `go_mod_tidy`,
+  `dependency_audit`, `list_scripts`, `bulk_update_tasks`, `export_tasks`.
+- **7 new git tools:** `git_branch`, `git_checkout`, `git_merge`, `git_pull`,
+  `git_push`, `git_remote`, `git_stash`.
+- **6 new filesystem tools:** `file_stat`, `list_directory`,
+  `read_multiple_files`, `file_diff`, `archive`, `unarchive`.
+  `edit_file` gains `replace_all` mode; `search_files` gains `regex` flag.
+- **`.env.example`:** Documents all `MCPGATE_*` environment variables.
+- **Windows PowerShell installer** (`install.ps1`) added to this repository.
+
+---
+
 ## [1.4.0] — 2026-06-04
 
 ### Added

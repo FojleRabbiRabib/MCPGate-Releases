@@ -20,7 +20,7 @@ enterprise-grade MCP bridge and agent server written in Go.
 
 ## Install
 
-### One-liner (Linux and macOS)
+### One-liner (Linux / macOS / FreeBSD)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FojleRabbiRabib/MCPGate-Releases/main/install.sh | bash
@@ -30,6 +30,17 @@ The script automatically detects your OS and architecture, downloads the correct
 binary, verifies the **SHA256 checksum AND the offline ed25519 signature**
 against the maintainer's public key embedded in the script, installs to
 `~/.local/bin/mcpgate`, and warns if that directory is not in your `PATH`.
+
+### One-liner (Windows — PowerShell)
+
+```powershell
+iex (irm https://raw.githubusercontent.com/FojleRabbiRabib/MCPGate-Releases/main/install.ps1)
+```
+
+The script detects your architecture, verifies SHA256 and ed25519 signature
+(requires `openssl.exe` — ships with Git for Windows), installs
+`mcpgate.exe` to `%LOCALAPPDATA%\Programs\MCPGate\`, and offers to add that
+directory to your user `PATH`.
 
 > The signing public key is reproduced inside `install.sh` and matches the
 > key baked into every release binary. The private half never touches CI or
@@ -60,11 +71,11 @@ ARCHIVE=mcpgate_${VERSION}_${PLATFORM}.tar.gz
 BASE=https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}
 
 curl -LO "${BASE}/${ARCHIVE}"
-curl -LO "${BASE}/${ARCHIVE}.sha256"
+curl -LO "${BASE}/checksums.txt"
 curl -LO "${BASE}/${ARCHIVE}.sig"
 
-# Verify checksum
-sha256sum --check ${ARCHIVE}.sha256
+# Verify checksum (checksums.txt is sha256sum format — one line per platform)
+grep "${ARCHIVE}" checksums.txt | sha256sum --check
 
 # Verify ed25519 signature (see "Verifying a release manually" for signing.pub)
 openssl pkeyutl -verify -pubin -inkey signing.pub -rawin -in ${ARCHIVE} -sigfile ${ARCHIVE}.sig
@@ -85,29 +96,28 @@ mv mcpgate ~/.local/bin/mcpgate
 | Linux | arm64 | `mcpgate_<version>_linux_arm64.tar.gz` |
 | macOS | x86_64 (Intel) | `mcpgate_<version>_darwin_amd64.tar.gz` |
 | macOS | Apple Silicon | `mcpgate_<version>_darwin_arm64.tar.gz` |
+| FreeBSD | x86_64 (amd64) | `mcpgate_<version>_freebsd_amd64.tar.gz` |
 | Windows | x86_64 (amd64) | `mcpgate_<version>_windows_amd64.zip` |
 | Windows | arm64 | `mcpgate_<version>_windows_arm64.zip` |
 
 Each release ships:
 
 - `<archive>` — the binary tarball / zip itself.
-- `<archive>.sha256` — per-asset SHA256 checksum (GoReleaser `split: true`).
+- `checksums.txt` — SHA256 digests for all platform archives in `sha256sum` format.
 - `<archive>.sig` — ed25519 signature over the archive bytes, produced
   offline by the maintainer with `openssl pkeyutl -sign -inkey signing.key`.
 - `<archive>.sbom.spdx.json` — SPDX-JSON Software Bill of Materials.
 
-Both `install.sh` and `mcpgate update` verify the SHA256 **and** the ed25519
+Both `install.sh` / `install.ps1` and `mcpgate update` verify the SHA256 **and** the ed25519
 signature before touching the running binary. A release missing its `.sig`
 files is treated as untrusted and refused — the maintainer signs releases
 locally after CI publishes the archives, so freshly-tagged releases may
 appear on this page for a few minutes before becoming installable.
 
-> **Windows native:** the installer auto-detects Git Bash / MSYS / Cygwin
-> environments and fetches the `.zip` archive. Native installs without a
-> POSIX shell aren't supported by `install.sh`; download the zip from the
-> Releases page directly, extract `mcpgate.exe`, and place it on `PATH`.
-> systemd-style service install (`mcpgate service install`) is Linux-only;
-> Windows operators can wrap the binary with NSSM or WinSW.
+> **Windows native:** use `install.ps1` (PowerShell one-liner above) for a
+> fully verified install. `install.sh` also works under Git Bash / MSYS /
+> Cygwin. After install, `mcpgate service install` integrates with the
+> Windows Service Control Manager (SCM) natively — no NSSM or WinSW needed.
 
 ---
 
@@ -132,9 +142,13 @@ mcpgate serve
 # Retrieve the key at any time
 mcpgate key show
 
-# Install as a user systemd service (Linux, no root required)
+# Linux/macOS — install as a systemd user service (no root required)
 mcpgate service install
 mcpgate service enable
+mcpgate service start
+
+# Windows — install as a Windows Service (requires elevated/Administrator prompt)
+mcpgate service install
 mcpgate service start
 ```
 
@@ -245,8 +259,7 @@ signature (the actual trust anchor).
 
 ### 1. Checksum
 
-Per-asset `.sha256` files ship alongside each archive (GoReleaser
-`split: true`):
+All platform digests are in a single `checksums.txt` in `sha256sum` format:
 
 ```bash
 VERSION=v1.0.0
@@ -254,9 +267,9 @@ PLATFORM=linux_amd64
 ARCHIVE=mcpgate_${VERSION}_${PLATFORM}.tar.gz
 
 curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/${ARCHIVE}"
-curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/${ARCHIVE}.sha256"
-sha256sum --check ${ARCHIVE}.sha256        # Linux
-shasum -a 256 --check ${ARCHIVE}.sha256    # macOS
+curl -LO "https://github.com/FojleRabbiRabib/MCPGate-Releases/releases/download/${VERSION}/checksums.txt"
+grep "${ARCHIVE}" checksums.txt | sha256sum --check        # Linux
+grep "${ARCHIVE}" checksums.txt | shasum -a 256 --check    # macOS
 ```
 
 ### 2. Ed25519 signature
