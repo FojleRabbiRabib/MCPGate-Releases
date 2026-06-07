@@ -1,0 +1,131 @@
+// MCPGate global config example — copy to ~/.mcpgate/config.json and edit.
+// Controls server-wide behaviour. Applied once at startup and on SIGHUP / hot-reload.
+//
+// Workspace configs (.mcpgate/config.json inside a project) are merged on top
+// at session-spawn time and may extend — but never restrict — the security
+// policy set here.
+//
+// Run `mcpgate config show` to inspect the fully-merged effective config.
+// Run `mcpgate config validate` to verify this file without starting the server.
+{
+  "version": "1.0.0",
+
+  // ── Runtime limits ────────────────────────────────────────────────────────
+  "limits": {
+    "maxSessions": 100,        // Max concurrent sessions across all types
+    "maxFileSize": 10485760,   // Max readable/writable file size in bytes (10 MB)
+    "outputLimit": 153600,     // Per-tool output truncation threshold in bytes (150 KB)
+    "commandTimeout": 60000,   // execute_command kill timeout in milliseconds
+    "idleTimeout": 600000,     // Bridge session idle timeout in milliseconds (10 min)
+    "shutdownTimeout": 15000,  // Graceful-shutdown wait in milliseconds
+    "maxBatchOperations": 15,  // Max operations per batch_execute call
+    "batchOutputLimit": 921600 // Batch aggregate response byte cap (900 KB)
+  },
+
+  // ── Security ──────────────────────────────────────────────────────────────
+  "permissions": {
+    // Path prefixes ALWAYS blocked regardless of workspace config.
+    // Merged with hardcoded defaults (/etc, ~/.ssh, ~/.mcpgate, etc.).
+    // Workspace configs cannot remove entries from this list.
+    "deniedPaths": [],
+
+    // Master command allow-list for bridge-mode spawn and execute_command.
+    // Default includes: node, npx, bun, deno, python3, uvx, git, go, cargo, ...
+    // Replaces the built-in list when non-empty — prefer additionalAllowedCommands
+    // to extend without clobbering the defaults.
+    "allowedCommands": [],
+
+    // Appended to allowedCommands. Both global and workspace may contribute.
+    "additionalAllowedCommands": [],
+
+    // Additional path prefixes the agent may read/write.
+    // Both global and workspace configs may contribute; the union is used.
+    "additionalAllowedPaths": [],
+
+    // Set to false to disable execute_command globally.
+    // Workspace configs may also toggle this.
+    "enableCommandExecution": true,
+
+    // Require read_file to be called on a file before write_file / edit_file
+    // may modify it in the same session. Off by default.
+    "requireReadBeforeWrite": false,
+
+    // Per-command argument blocklists merged with hardcoded safe defaults.
+    // Prevents dangerous flag injection (e.g. git --upload-pack, rm -rf /).
+    "commandArgBlocklist": {
+      "git": ["--upload-pack", "--receive-pack"]
+    }
+  },
+
+  // ── Spawn rate limiting ───────────────────────────────────────────────────
+  // Token-bucket limiter applied per source IP to /sse and /mcp endpoints.
+  "spawnRateLimit": {
+    "requests": 600,   // Allowed spawn requests per window
+    "window": "15m"    // Window duration (e.g. "1m", "15m", "1h")
+  },
+
+  // ── Tool activation ───────────────────────────────────────────────────────
+  // IMPORTANT: "disabled" and "disabledTools" are two different fields.
+  //
+  //   tools.disabled      — suppresses entire CATEGORIES (e.g. "web", "git")
+  //   tools.disabledTools — suppresses individual TOOL NAMES (e.g. "git_push")
+  //
+  // Putting individual tool names under "disabled" has no effect — they are
+  // treated as unknown category names and silently ignored. Always use
+  // "disabledTools" to suppress tools by name.
+  "tools": {
+    // "auto"   — activate categories inferred from project-type detection
+    // "all"    — activate every tool category
+    // "manual" — activate only the categories listed in "enabled"
+    "mode": "auto",
+
+    // Tool CATEGORIES to enable (only when mode = "manual").
+    // Known values: android, batch, commands, filesystem, formatting, git,
+    //               images, laravel, ml, package_manager, project, tasks,
+    //               testing, web
+    "enabled": [],
+
+    // Tool CATEGORIES to suppress even in "auto" or "all" mode.
+    "disabled": [],
+
+    // Override auto-detected project types.
+    // Known values: go, node, python, rust, ruby, java, kotlin, flutter,
+    //               react, vue, angular, php, dotnet, cpp, bash, generic
+    "forceProjectTypes": [],
+
+    // Individual TOOL NAMES to enable within their category.
+    // When non-empty, only the listed tools are active inside their category.
+    // Takes precedence over disabledTools for the same name.
+    "enabledTools": [],
+
+    // Individual TOOL NAMES to suppress even when their category is active.
+    // Use this — NOT "disabled" — to remove specific tools by name.
+    "disabledTools": [],
+
+    // Per-tool invocation rate limits. Absent = unlimited for that tool.
+    "rateLimit": {
+      "web_search":      { "requests": 20, "per": "minute" },
+      "execute_command": { "requests": 60, "per": "minute" }
+    }
+  },
+
+  // ── Auto-update ───────────────────────────────────────────────────────────
+  "update": {
+    "channel": "stable",        // "stable" or "beta"
+    "autoCheck": true,          // Background check on server startup
+    "checkIntervalHours": 24    // How often the background check re-runs (hours)
+  },
+
+  // ── Web search provider ───────────────────────────────────────────────────
+  // API keys here are overridden by MCPGATE_BRAVE_API_KEY / MCPGATE_TAVILY_API_KEY
+  // environment variables. Prefer env vars so keys stay off disk.
+  "search": {
+    // "auto"       — pick first provider with a key, fall back to DuckDuckGo
+    // "brave"      — force Brave Search (requires braveApiKey or MCPGATE_BRAVE_API_KEY)
+    // "tavily"     — force Tavily (requires tavilyApiKey or MCPGATE_TAVILY_API_KEY)
+    // "duckduckgo" — force DuckDuckGo (no key required)
+    "provider": "auto",
+    "braveApiKey": "",
+    "tavilyApiKey": ""
+  }
+}

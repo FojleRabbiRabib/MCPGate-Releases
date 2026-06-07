@@ -1,0 +1,72 @@
+// MCPGate workspace config example — copy to .mcpgate/config.json and edit.
+// Loaded fresh at session-spawn time; edits take effect on the next new session
+// without restarting the server.
+//
+// Cascade: built-in defaults → ~/.mcpgate/config.json → this file.
+// Workspace configs may only EXTEND (never restrict) allowed commands/paths,
+// and may only TIGHTEN (never loosen) size and timeout limits.
+//
+// Run `mcpgate config show` inside this workspace to inspect the merged result.
+{
+  "version": "1.0.0",
+
+  // ── Security extensions ────────────────────────────────────────────────
+  "permissions": {
+    // Appended to the global additionalAllowedCommands list (append-only).
+    "additionalAllowedCommands": [],
+
+    // Appended to the global additionalAllowedPaths list (append-only).
+    "additionalAllowedPaths": [],
+
+    // Override the global enableCommandExecution toggle for this workspace.
+    // Omit to inherit the global value.
+    // "enableCommandExecution": true,
+
+    // Extra per-command argument blocklists merged on top of the global list.
+    "commandArgBlocklist": {}
+  },
+
+  // ── Limit overrides ──────────────────────────────────────────────────────
+  // Workspace may only LOWER these values. Raising above the global cap is
+  // silently ignored.
+  "limits": {
+    // "maxFileSize": 5242880,    // bytes  — max readable/writable file size
+    // "outputLimit": 102400,     // bytes  — per-tool output truncation threshold
+    // "commandTimeout": 30000,   // ms     — execute_command kill timeout
+    // "batchOutputLimit": 524288 // bytes  — batch_execute aggregate response cap
+  },
+
+  // ── Tool overrides ────────────────────────────────────────────────────────
+  "tools": {
+    // Override the global tool activation mode for this workspace.
+    // "auto"   — activate categories inferred from project-type detection
+    // "all"    — activate every tool category
+    // "manual" — activate only the categories listed in "enabled"
+    // "mode": "auto",
+
+    // Tool CATEGORIES to enable (only when mode = "manual").
+    // Known values: android, batch, commands, filesystem, formatting, git,
+    //               images, laravel, ml, package_manager, project, tasks,
+    //               testing, web
+    // "enabled": [],
+
+    // Tool CATEGORIES to suppress even in "auto" or "all" mode.
+    // Use category names here — NOT individual tool names.
+    // "disabled": ["web"],
+
+    // Override auto-detected project type for this workspace.
+    // Known values: go, node, python, rust, ruby, java, kotlin, flutter,
+    //               react, vue, angular, php, dotnet, cpp, bash, generic
+    // "forceProjectTypes": ["go"],
+
+    // Individual TOOL NAMES to enable within their category.
+    // When non-empty, only the listed tools are active inside their category.
+    // Takes precedence over disabledTools for the same name.
+    // "enabledTools": ["read_file", "write_file", "git_status"],
+
+    // Individual TOOL NAMES to suppress even when their category is active.
+    // THIS is the correct field for disabling specific tools by name.
+    // Do NOT put tool names under "disabled" — that field is for categories only.
+    // "disabledTools": ["git_push", "git_merge", "run_tests", "web_search"]
+  }
+}

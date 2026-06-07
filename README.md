@@ -298,6 +298,42 @@ this GitHub release.
 
 ---
 
+## Configuration
+
+**Global config:** `~/.mcpgate/config.json`  
+**Workspace override:** `.mcpgate/config.json` inside the workspace root (merged on top of global at session-spawn time)
+
+Config cascade: **built-in defaults → global config → workspace config**.  
+Unknown fields are silently ignored — safe to roll back to older binaries.
+
+Run `mcpgate init` inside any workspace to auto-detect the project type and write a starter `.mcpgate/config.json`. Run `mcpgate config show` to inspect the fully-merged effective config for the current workspace.
+
+Annotated example files are included in this repository:
+
+- [`config.global.example.json`](config.global.example.json) — copy to `~/.mcpgate/config.json`
+- [`config.example.json`](config.example.json) — copy to `<workspace>/.mcpgate/config.json`
+
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `MCPGATE_API_KEY` | Override the key file — useful for CI/containers |
+| `MCPGATE_BIND` | Override `--bind` (e.g. `0.0.0.0:8080`) |
+| `MCPGATE_CORS_ORIGIN` | Override `--cors-origin` |
+| `MCPGATE_NO_AUTH` | `1`/`true`/`yes` — disable Bearer auth (dev only) |
+| `MCPGATE_UNSAFE_PUBLIC_NOAUTH` | `1`/`true`/`yes` — explicit opt-in required to combine `MCPGATE_NO_AUTH` with a non-loopback bind |
+| `MCPGATE_STATELESS` | `1`/`true`/`yes` — stateless Streamable HTTP mode |
+| `MCPGATE_TRUSTED_PROXIES` | Comma-separated CIDRs whose `X-Forwarded-*` we honour |
+| `MCPGATE_DASHBOARD_PUBLIC` | `1`/`true`/`yes` — widen the dashboard peer gate |
+| `MCPGATE_DASHBOARD_ALLOW` | Comma-separated CIDRs admitted to `/manage*` |
+| `MCPGATE_ALLOW_ROOT` | `1`/`true`/`yes` — bypass the interactive root-user confirmation prompt |
+| `MCPGATE_UPDATE_CHANNEL` | `stable` or `beta` |
+| `MCPGATE_SEARCH_PROVIDER` | `auto`, `brave`, `tavily`, or `ddg` — web_search backend (default: `auto`) |
+| `MCPGATE_BRAVE_API_KEY` | Brave Search API key — enables Brave as web_search provider |
+| `MCPGATE_TAVILY_API_KEY` | Tavily Search API key — enables Tavily as web_search provider |
+
+---
+
 ## Release history
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history with detailed
