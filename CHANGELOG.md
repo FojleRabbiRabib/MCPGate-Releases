@@ -7,6 +7,54 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.6.0] — 2026-06-23
+
+### Added
+
+- **Configurable destructive-confirmation policy:** the MCP elicitation prompt
+  on destructive tools (`delete_file`, `laravel_artisan`) is now configurable
+  per tool via `tools.confirm` (`auto` / `always` / `never`), with
+  `tools.confirmOnUnavailable` (`fail-open` / `fail-closed`) for clients that
+  can't elicit. A workspace config may only *tighten* a confirmation; loosening
+  is global-only unless `tools.allowWorkspaceConfirmOverrides` is set.
+- **First-run config seeding + hot-reloadable CORS:** `~/.mcpgate/config.json`
+  is seeded on first start; `cors.origins` is settable from the global config
+  and reloads live (SIGHUP / file change / dashboard "Reload Config" button).
+- **`show_ignored`** option on `find_files`, `search_files`,
+  `get_project_structure`, and `list_directory` to reveal `.gitignored` entries
+  on demand.
+- **`laravel_test`** tool, Pest/PHPUnit auto-detection from `composer.json`,
+  and expanded `laravel_phpunit` flags.
+- **Configurable temp-spill retention** (`temp.retentionMs`) with a startup
+  purge and background janitor for `~/.mcpgate/tmp/`.
+
+### Changed
+
+- `list_directory` now hides noise/security dirs and `.gitignored` entries by
+  default.
+- `laravel_routes` filters via `route:list --json` in-process (Laravel's
+  `route:list` has no `--filter`).
+
+### Fixed
+
+- Streamable HTTP agent sessions reconnect cleanly when a client replays a stale
+  `Mcp-Session-Id` on `initialize` (e.g. the MCP Inspector "Reconnect" button) —
+  the id is adopted for a new session instead of returning 404.
+- Parent task progress now syncs on every subtask add / remove / status change.
+- Streamable agent sessions cancel immediately on shutdown and kill.
+- `search_files` no longer leaks `.gitignored` matches in its text output.
+- Per-project `~/.mcpgate/tmp/` spill files are readable back via a scoped
+  path-validator carve-out.
+
+### Security
+
+- `POST /authorize` now enforces a CSRF check before issuing an authorization
+  code.
+- Removed a dead path-validator bypass so default-denied paths are enforced
+  unconditionally.
+
+---
+
 ## [1.5.0] — 2026-06-06
 
 ### Security

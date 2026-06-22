@@ -106,7 +106,37 @@
     "rateLimit": {
       "web_search":      { "requests": 20, "per": "minute" },
       "execute_command": { "requests": 60, "per": "minute" }
-    }
+    },
+
+    // Per-tool destructive-confirmation policy. Tools that can destroy data
+    // (delete_file, laravel_artisan's db:wipe/migrate:fresh, …) ask the client
+    // to confirm via the MCP elicitation flow before running. Each value is:
+    //   "auto"   — built-in default: confirm only when the invocation is
+    //              actually destructive (delete_file always; laravel_artisan
+    //              only for destructive subcommands). Same as omitting the tool.
+    //   "always" — confirm on every call, even non-destructive ones.
+    //   "never"  — never prompt (use only for trusted, automated environments).
+    // Only tools that actually perform a confirmable action honor this —
+    // currently "delete_file" and "laravel_artisan". Entries for other tool
+    // names are accepted but have no effect (no prompt is wired for them yet).
+    "confirm": {
+      "delete_file": "auto"
+    },
+
+    // What to do when a confirmation is REQUIRED but the connected client
+    // cannot elicit (no elicitation capability, or it never answers):
+    //   "fail-open"   — proceed anyway (default; keeps headless automation
+    //                   working — most CLI/automation clients can't prompt).
+    //   "fail-closed" — refuse the action. Pick this for a hard gate.
+    // GLOBAL ONLY — a workspace config cannot weaken this.
+    "confirmOnUnavailable": "fail-open",
+
+    // Whether a per-workspace .mcpgate/config.json may LOOSEN a confirmation
+    // (e.g. set a destructive tool to "never"). When false (default) a workspace
+    // may only TIGHTEN (raise a tool toward "always"); any loosening entry is
+    // ignored — so an untrusted repo can never disarm a prompt on its own.
+    // GLOBAL ONLY.
+    "allowWorkspaceConfirmOverrides": false
   },
 
   // ── Auto-update ───────────────────────────────────────────────────────────
@@ -127,5 +157,39 @@
     "provider": "auto",
     "braveApiKey": "",
     "tavilyApiKey": ""
+  },
+
+  // ── CORS (browser origin allowlist) ───────────────────────────────────────
+  // GLOBAL ONLY — a workspace .mcpgate/config.json cannot set this; a "cors"
+  // block there is silently ignored.
+  //
+  // Origins permitted to call the API from a browser. Empty (the default)
+  // rejects browser callers at preflight (no Access-Control-Allow-Origin).
+  // Use a single "*" to opt into wildcard (downgraded to a reflected origin
+  // when the request carries credentials). The CLI --cors-origin flag /
+  // MCPGATE_CORS_ORIGIN env var overrides this list when set.
+  //
+  // Hot-reloaded on SIGHUP, file change, and the dashboard "Reload Config"
+  // button — no restart needed.
+  "cors": {
+    "origins": []
+  },
+
+  // ── Temp spill retention ────────────────────────────────────────────────
+  // GLOBAL ONLY — a workspace .mcpgate/config.json cannot set this; a "temp"
+  // block there is silently ignored.
+  //
+  // Tool outputs larger than the per-tool / batch byte caps are spilled to
+  // per-project files under ~/.mcpgate/tmp/<workspace-slug>/ so the LLM can
+  // read the full output back. retentionMs is how long those spill files live
+  // before the background janitor removes them, in milliseconds. Zero (the
+  // default) means use the built-in default of one hour. A startup sweep also
+  // clears the whole dir once between runs. Set a larger value to keep
+  // oversized outputs retrievable for longer at the cost of disk use.
+  //
+  // Hot-reloaded on SIGHUP, file change, and the dashboard "Reload Config"
+  // button — the janitor consults this on every sweep, so no restart is needed.
+  "temp": {
+    "retentionMs": 0
   }
 }

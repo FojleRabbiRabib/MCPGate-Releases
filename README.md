@@ -161,6 +161,7 @@ On first start mcpgate creates `~/.mcpgate/` with:
 | `~/.mcpgate/mcpgate.db` | SQLite database (tasks + audit log) |
 | `~/.mcpgate/logs/mcpgate.log` | Structured log output |
 | `~/.mcpgate/admin.sock` | Unix socket for the admin API |
+| `~/.mcpgate/tmp/` | Oversized tool-output spill files (created on demand, auto-pruned) |
 
 ---
 
@@ -179,7 +180,7 @@ Login with your master API key. The dashboard provides:
 - **Sessions** — live session table with kill action and confirm dialog
 - **Audits** — filterable tool invocation log with search, date range, severity, and clear-all
 - **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtask checklist (drag-to-reorder, per-subtask status), inter-task dependency graph (blocked-by picker, done-block guard), priority and progress
-- **Settings** — key rotation, update-available banner, connection status
+- **Settings** — key rotation, live config reload (re-reads global + workspace config across active sessions), update-available banner, connection status
 
 The dashboard receives live updates via SSE from `/api/events` and supports dark/light theme.
 
@@ -279,7 +280,7 @@ Save the maintainer's public key to a file (also reproduced in `install.sh`):
 ```bash
 cat > signing.pub <<'EOF'
 -----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAckyuOanVl+8ciri42lcN20kZd95xwAUZN88ualFjl4Q=
+MCowBQYDK2VwAyEATLE/mKPX5XUUhOh6XN6T0XOvn2zKGyte4YyMFEa9bHk=
 -----END PUBLIC KEY-----
 EOF
 ```

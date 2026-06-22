@@ -67,6 +67,13 @@
     // Individual TOOL NAMES to suppress even when their category is active.
     // THIS is the correct field for disabling specific tools by name.
     // Do NOT put tool names under "disabled" — that field is for categories only.
-    // "disabledTools": ["git_push", "git_merge", "run_tests", "web_search"]
+    // "disabledTools": ["git_push", "git_merge", "run_tests", "web_search"],
+
+    // Per-tool destructive-confirmation policy ("auto" | "always" | "never").
+    // A workspace may only TIGHTEN (raise a tool toward "always"); loosening
+    // toward "never" is ignored unless the GLOBAL config sets
+    // tools.allowWorkspaceConfirmOverrides. Honored by tools that perform a
+    // confirmable action (currently delete_file, laravel_artisan).
+    // "confirm": { "delete_file": "always" }
   }
 }
