@@ -1,8 +1,8 @@
 # Contributing
 
-**MCPGate is proprietary software with a private source repository.
-External contributions are not accepted.** Pull requests opened against
-this releases repository will be closed without review.
+**MCPGate is proprietary software, and code contributions are not accepted.**
+Pull requests opened against this releases repository will be closed without
+review.
 
 If you reached this page from the GitHub *Contributing* link, please use
 one of the channels below instead:

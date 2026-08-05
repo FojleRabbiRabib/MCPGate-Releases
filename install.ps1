@@ -34,9 +34,8 @@ $InstallDir    = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } `
 $Version       = $env:VERSION   # empty = fetch latest
 $SkipPathPrompt = ($env:SKIP_PATH_PROMPT -eq '1')
 
-# Embedded ed25519 public key (PEM). The matching private key is held offline
-# by the maintainer and never touches CI. Verifying this signature means the
-# binary is trusted even if the GitHub releases repo is compromised.
+# Embedded ed25519 public key (PEM). The corresponding private key is kept
+# offline. A valid signature binds the archive to the maintainer's key.
 $SigningPubKeyPem = @'
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEATLE/mKPX5XUUhOh6XN6T0XOvn2zKGyte4YyMFEa9bHk=
@@ -53,16 +52,9 @@ function Fail([string]$msg) {
 }
 
 # ── Dependency: openssl.exe ────────────────────────────────────────────────────
-# openssl is required for ed25519 signature verification. It ships with
-# Git for Windows and is available in most modern Windows environments.
-# If absent, fall back to SHA256-only with a prominent warning.
-$opensslPath = Get-Command openssl.exe -ErrorAction SilentlyContinue
-if (-not $opensslPath) {
-    Write-Warn 'openssl.exe not found — ed25519 signature verification will be SKIPPED.'
-    Write-Warn 'Install Git for Windows (https://git-scm.com/download/win) to enable full verification.'
-    $SkipSigVerify = $true
-} else {
-    $SkipSigVerify = $false
+# openssl is required for ed25519 signature verification.
+if (-not (Get-Command openssl.exe -ErrorAction SilentlyContinue)) {
+    Fail 'openssl.exe is required for release-signature verification. Install Git for Windows and retry.'
 }
 
 # ── Architecture detection ─────────────────────────────────────────────────────
@@ -143,36 +135,30 @@ if ($actualHash -ne $expectedHash) {
 Write-Ok 'SHA256 OK'
 
 # ── Ed25519 signature verification ────────────────────────────────────────────
-if ($SkipSigVerify) {
-    Write-Warn 'Skipping ed25519 signature verification (openssl not available).'
-} else {
-    Write-Step 'Verifying ed25519 signature…'
-    $sigPath    = Join-Path $tmp "${archiveName}.sig"
-    $pubkeyPath = Join-Path $tmp 'signing.pub'
+Write-Step 'Verifying ed25519 signature…'
+$sigPath    = Join-Path $tmp "${archiveName}.sig"
+$pubkeyPath = Join-Path $tmp 'signing.pub'
 
-    try {
-        Invoke-WebRequest $signatureUrl -OutFile $sigPath -UseBasicParsing
-    } catch {
-        Fail "Release $Version is missing ${archiveName}.sig.`nUnsigned releases are refused. Freshly-tagged releases may not be signed yet — wait a few minutes and retry, or pin a previous VERSION."
-    }
-
-    # Write the embedded PEM public key to a temp file for openssl.
-    Set-Content -Path $pubkeyPath -Value $SigningPubKeyPem -Encoding ASCII
-
-    $result = & openssl.exe pkeyutl -verify -pubin -inkey $pubkeyPath `
-        -rawin -in $archivePath -sigfile $sigPath 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Fail "Ed25519 signature did NOT verify against the maintainer's key.`nThis is a hard refusal — the downloaded archive is not trusted.`nopenssl output: $result"
-    }
-    Write-Ok 'Signature OK'
+try {
+    Invoke-WebRequest $signatureUrl -OutFile $sigPath -UseBasicParsing
+} catch {
+    Fail "Release $Version is missing ${archiveName}.sig.`nUnsigned releases are refused. A newly published release may not be signed yet — retry later, or pin a previous VERSION."
 }
+
+Set-Content -Path $pubkeyPath -Value $SigningPubKeyPem -Encoding ASCII
+$result = & openssl.exe pkeyutl -verify -pubin -inkey $pubkeyPath `
+    -rawin -in $archivePath -sigfile $sigPath 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Fail "Ed25519 signature did NOT verify against the maintainer's key.`nThis is a hard refusal — the downloaded archive is not trusted.`nopenssl output: $result"
+}
+Write-Ok 'Signature OK'
 
 # ── Extract mcpgate.exe ────────────────────────────────────────────────────────
 Write-Step 'Extracting mcpgate.exe…'
 $extractDir = Join-Path $tmp 'unpack'
 Expand-Archive -Path $archivePath -DestinationPath $extractDir -Force
 
-# GoReleaser nests the binary one directory deep: mcpgate_vX.Y.Z_windows_amd64\mcpgate.exe
+# The binary may be nested one directory deep inside the archive.
 $exeFile = Get-ChildItem -Path $extractDir -Filter 'mcpgate.exe' -Recurse -File |
     Select-Object -First 1
 if (-not $exeFile) {

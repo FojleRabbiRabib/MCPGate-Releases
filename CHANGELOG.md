@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.0] — 2026-08-05
+
+### Changed
+
+- Release pages now use curated version notes from this changelog for clear,
+  user-focused summaries.
+- Published archives now contain only the platform binary and proprietary
+  license, with a consolidated `checksums.txt` file for verification.
+- Release publication now verifies the complete archive and checksum set before
+  making a release available.
+
+### Security
+
+- Installers and self-update continue to require a valid offline ed25519
+  signature for every archive; unsigned or mismatched assets are refused.
+
+---
+
 ## [1.6.0] — 2026-06-23
 
 ### Added

@@ -6,10 +6,11 @@
 [![License](https://img.shields.io/badge/license-proprietary-red)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/FojleRabbiRabib/MCPGate-Releases?style=flat)](../../stargazers)
 
-This repository hosts compiled binaries and the installer for **MCPGate** — an
-enterprise-grade MCP bridge and agent server written in Go.
+This repository provides official compiled binaries, installers, the
+proprietary license, and user documentation for **MCPGate** — an enterprise-grade
+MCP bridge and agent server written in Go. Each release page uses the matching
+version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-> **Source code** is in a private repository.
 > **All public interactions — bug reports, feature requests, install issues,
 > usage questions — happen in [this repo's Issues tab](../../issues).**
 > Please do not email the maintainer directly for non-security matters; opening
@@ -43,9 +44,9 @@ The script detects your architecture, verifies SHA256 and ed25519 signature
 directory to your user `PATH`.
 
 > The signing public key is reproduced inside `install.sh` and matches the
-> key baked into every release binary. The private half never touches CI or
-> any online system — a compromise of this releases repository cannot mint
-> binaries the installer or the `mcpgate update` command will trust.
+> key baked into every release binary. The corresponding private key is kept
+> offline, so published archives must carry a valid maintainer signature before
+> the installer or `mcpgate update` will trust them.
 
 ### Specific version
 
@@ -81,7 +82,7 @@ grep "${ARCHIVE}" checksums.txt | sha256sum --check
 openssl pkeyutl -verify -pubin -inkey signing.pub -rawin -in ${ARCHIVE} -sigfile ${ARCHIVE}.sig
 
 # Extract and install
-tar -xzf "${ARCHIVE}" --strip-components=1 mcpgate
+tar -xzf "${ARCHIVE}" mcpgate
 chmod +x mcpgate
 mv mcpgate ~/.local/bin/mcpgate
 ```
@@ -102,17 +103,15 @@ mv mcpgate ~/.local/bin/mcpgate
 
 Each release ships:
 
-- `<archive>` — the binary tarball / zip itself.
+- `<archive>` — the platform binary plus the public proprietary `LICENSE`.
 - `checksums.txt` — SHA256 digests for all platform archives in `sha256sum` format.
 - `<archive>.sig` — ed25519 signature over the archive bytes, produced
   offline by the maintainer with `openssl pkeyutl -sign -inkey signing.key`.
-- `<archive>.sbom.spdx.json` — SPDX-JSON Software Bill of Materials.
 
 Both `install.sh` / `install.ps1` and `mcpgate update` verify the SHA256 **and** the ed25519
 signature before touching the running binary. A release missing its `.sig`
-files is treated as untrusted and refused — the maintainer signs releases
-locally after CI publishes the archives, so freshly-tagged releases may
-appear on this page for a few minutes before becoming installable.
+files is treated as untrusted and refused. Newly published releases may briefly
+remain unavailable until their offline signatures are attached.
 
 > **Windows native:** use `install.ps1` (PowerShell one-liner above) for a
 > fully verified install. `install.sh` also works under Git Bash / MSYS /
@@ -318,7 +317,7 @@ Annotated example files are included in this repository:
 
 | Variable | Description |
 |---|---|
-| `MCPGATE_API_KEY` | Override the key file — useful for CI/containers |
+| `MCPGATE_API_KEY` | Override the key file — useful for automated deployments and containers |
 | `MCPGATE_BIND` | Override `--bind` (e.g. `0.0.0.0:8080`) |
 | `MCPGATE_CORS_ORIGIN` | Override `--cors-origin` |
 | `MCPGATE_NO_AUTH` | `1`/`true`/`yes` — disable Bearer auth (dev only) |
@@ -347,8 +346,8 @@ links and attached assets.
 
 Security-sensitive findings **must not** be filed as public issues. Email the
 maintainer directly via the address on the GitHub profile linked below, and
-expect acknowledgement within 48 hours. See the project's internal SECURITY
-policy for severity-based response targets.
+expect acknowledgement within 48 hours. See [SECURITY.md](SECURITY.md) for
+severity-based response targets.
 
 ---
 
@@ -359,9 +358,6 @@ policy for severity-based response targets.
 - **Bug reports, feature requests, install / usage questions** → [open an issue here](../../issues)
 - **Security findings** → see *Reporting a Security Issue* above
 - **General contact** → GitHub profile
-
-The source repository is private; please do not attempt to open issues or
-pull requests there.
 
 ---
 

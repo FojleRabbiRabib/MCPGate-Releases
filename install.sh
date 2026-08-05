@@ -50,11 +50,9 @@ if ! command -v openssl >/dev/null 2>&1; then
 fi
 
 # ── Embedded release-signing public key ───────────────────────────────────────
-# This is the ed25519 public key the maintainer signs every release with. The
-# matching private key never touches CI or any online system — see the
-# Releases README "Verifying a release manually" section for details. The
-# same key is baked into every release binary via -ldflags so `mcpgate update`
-# applies the identical check.
+# This is the ed25519 public key used to verify release signatures. The
+# corresponding private key is kept offline. The same public key is embedded in
+# every release binary so `mcpgate update` applies the identical check.
 SIGNING_PUBKEY_PEM='-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEATLE/mKPX5XUUhOh6XN6T0XOvn2zKGyte4YyMFEa9bHk=
 -----END PUBLIC KEY-----'
@@ -128,10 +126,8 @@ fi
 echo "Installing MCPGate ${VERSION} for ${OS}/${ARCH}…"
 
 # ── Download URLs ──────────────────────────────────────────────────────────────
-# Archive name matches GoReleaser default: mcpgate_<version>_<os>_<arch>.tar.gz
-# All platform SHA256 digests are in a single checksums.txt (GoReleaser default).
-# Per-asset ed25519 signature lives at <archive>.sig (uploaded by
-# `make sign-release` after the maintainer signs locally).
+# Release assets use mcpgate_<version>_<os>_<arch>.<ext> names.
+# checksums.txt contains all SHA256 digests; each archive has a matching .sig.
 ARCHIVE_NAME="mcpgate_${VERSION}_${OS}_${ARCH}.${ARCHIVE_EXT}"
 BASE_URL="https://github.com/${RELEASES_REPO}/releases/download/${VERSION}"
 DOWNLOAD_URL="${BASE_URL}/${ARCHIVE_NAME}"
@@ -186,9 +182,8 @@ echo "✓ SHA256 OK"
 echo "Verifying ed25519 signature…"
 if ! curl -fsSL --retry 3 --retry-delay 2 -o "${TMP_DIR}/${ARCHIVE_NAME}.sig" "${SIGNATURE_URL}"; then
   echo "Error: release ${VERSION} is missing ${ARCHIVE_NAME}.sig." >&2
-  echo "Unsigned releases are refused — the maintainer signs releases" >&2
-  echo "locally after CI publishes the archives, so freshly-tagged releases" >&2
-  echo "may not be installable for a few minutes. Try again, or pin to a" >&2
+  echo "Unsigned releases are refused. A newly published release may not" >&2
+  echo "have its offline signature yet. Try again later, or pin to a" >&2
   echo "previous VERSION." >&2
   exit 1
 fi
@@ -204,8 +199,8 @@ fi
 echo "✓ Signature OK"
 
 # ── Extract binary ─────────────────────────────────────────────────────────────
-# GoReleaser archives nest the binary inside a directory named after the archive.
-# Tar handles both flat and one-level-deep layouts with --strip-components=1;
+# Archives may place the binary at the root or one directory deep.
+# Tar handles both layouts with --strip-components=1;
 # zip we unpack and then locate the binary.
 echo "Extracting binary…"
 BIN_NAME="mcpgate"
@@ -218,7 +213,7 @@ if [ "${ARCHIVE_EXT}" = "zip" ]; then
     echo "Error: 'unzip' not found — install it and retry." >&2; exit 1; \
   }
   unzip -qq "${TMP_DIR}/${ARCHIVE_NAME}" -d "${TMP_DIR}/unpack"
-  # Hunt the binary one level deep (GoReleaser layout) then at the root.
+  # Locate the binary at the archive root or one directory deep.
   FOUND="$(find "${TMP_DIR}/unpack" -maxdepth 2 -type f -name "${BIN_NAME}" -print -quit)"
   if [ -z "${FOUND}" ]; then
     echo "Error: ${BIN_NAME} not found inside ${ARCHIVE_NAME}." >&2

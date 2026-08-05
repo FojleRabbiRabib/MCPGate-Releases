@@ -73,28 +73,27 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
 
 ## Supply-chain integrity
 
-Every published archive is signed offline by the maintainer with an ed25519
-key whose public half is reproduced in `install.sh` and baked into every
-release binary at build time. Both the installer and `mcpgate update`
-verify SHA256 **and** the ed25519 signature; releases missing or failing
-their `.sig` are refused without modifying the running binary.
+Every published archive contains the platform binary and the proprietary
+license.
 
-The private signing key never reaches CI or any system other than the
-maintainer's offline storage. Consequently:
+Each archive is signed offline by the maintainer with an ed25519 key whose
+public half is reproduced in `install.sh` and baked into every release binary.
+Both the installer and `mcpgate update` verify `checksums.txt` and the archive
+signature; missing or invalid signatures are refused without modifying the
+running binary.
 
-- A compromise of this releases repository (or the `RELEASES_PAT` token that
-  GoReleaser uses to publish) cannot produce a binary that installs.
-- Tampering with `<archive>` or `<archive>.sha256` is caught by signature
-  verification at install time.
-- A signing-key rotation orphans every running mcpgate from auto-update
-  until users reinstall via `install.sh` (which re-fetches the embedded
-  public key). The release notes for any such rotation will spell out the
-  reinstall step prominently.
+The signing key is kept offline. Consequently:
+
+- Compromise of this repository alone cannot produce a binary accepted by the
+  installer or updater.
+- Tampering with an archive, its checksum entry, or both is detected before
+  installation because the archive must also match the offline signature.
+- A signing-key rotation requires users to reinstall through the documented
+  installer so they receive a binary containing the new public key.
 
 Manual verification commands are documented in the [Releases README](README.md#verifying-a-release-manually).
 
 ---
 
-*This policy applies to the binaries published in this repository. The source
-code lives in a private repository and is not part of the public attack surface
-audit.*
+*This policy applies to the binaries and installers published in this
+repository.*
