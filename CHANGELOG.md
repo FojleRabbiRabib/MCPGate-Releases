@@ -22,6 +22,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Installers and self-update continue to require a valid offline ed25519
   signature for every archive; unsigned or mismatched assets are refused.
+- Release binaries are built with Go 1.25.12, incorporating the standard-library
+  security fixes verified by `govulncheck`.
 
 ---
 
