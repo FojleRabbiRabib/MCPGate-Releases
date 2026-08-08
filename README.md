@@ -11,6 +11,12 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
+> ## Open-source at 1,000 stars
+>
+> When this repository reaches **1,000 GitHub stars**, the private MCPGate
+> source repository will be made public and **MCPGate will be open-sourced for
+> everyone**.
+
 > **All public interactions — bug reports, feature requests, install issues,
 > usage questions — happen in [this repo's Issues tab](../../issues).**
 > Please do not email the maintainer directly for non-security matters; opening
@@ -110,8 +116,9 @@ Each release ships:
 
 Both `install.sh` / `install.ps1` and `mcpgate update` verify the SHA256 **and** the ed25519
 signature before touching the running binary. A release missing its `.sig`
-files is treated as untrusted and refused. Newly published releases may briefly
-remain unavailable until their offline signatures are attached.
+files is treated as untrusted and refused. Unsigned release candidates remain
+drafts and are not exposed as the latest release. Publication happens only after
+every archive signature has been attached and cryptographically verified.
 
 > **Windows native:** use `install.ps1` (PowerShell one-liner above) for a
 > fully verified install. `install.sh` also works under Git Bash / MSYS /
