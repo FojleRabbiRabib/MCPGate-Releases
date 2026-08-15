@@ -7,6 +7,43 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.8.0] — 2026-08-15
+
+### Added
+
+- **Resource-aware admission control:** bounded fair queues coordinate expensive session setup and tool work across agent, bridge, boost, stateless, and batch paths with cancellation, overload guidance, and low-cardinality resource-pressure telemetry.
+- **Typed subprocess memory policies:** operators can configure process-tree, session, workspace-aggregate, category, and tool memory ceilings with platform-aware enforcement and fail-closed `hard-required` behavior.
+- **Claude-compatible project memory ownership:** `.mcpgate/memory/` is now MCPGate's dedicated project-memory store, with revision-safe MCP/admin/dashboard workflows, optional sharing with Claude Code through a symlink, and no generic filesystem write bypass.
+- **Boost-aware batch execution:** `batch_execute` can invoke the merged boost tool surface, including upstream-owned tools, while preserving ordered results, structured errors, cancellation, limits, and bounded aggregate output.
+- **Active workspace configuration hot reload:** stateful sessions retain and watch validated workspace overlays while active; valid edits publish to matching reloadable sessions, invalid edits keep the last-known-good policy, and authenticated diagnostics expose generation/remediation details.
+
+### Changed
+
+- Confirmation now uses SDK-standard MCP form elicitation based on negotiated capability. The proprietary fallback and `tools.confirmOnUnavailable` setting are removed; authentication, ACLs, path/command restrictions, and tool validation remain authoritative.
+- Explicit command additions now apply consistently to agent execution and bridge/boost spawning while preserving separate least-privilege built-in command bases and executable-identity safeguards.
+- Stateful agent/bridge/boost discovery and downgrade behavior now follows the SDK capability model with explicit machine-readable negotiation guidance.
+- Release publication is offline-gated: CI prepares verified drafts, while `make sign-release` verifies assets/checksums, creates and verifies every ed25519 signature, and publishes only after exact signed parity is confirmed.
+- Release and CI builds now use **Go 1.25.13**.
+
+### Fixed
+
+- Boost upstream startup, transport, timeout, process-exit, and malformed-protocol failures no longer take down MCPGate-owned tools; upstream-owned calls fail with stable degraded-state errors until a new healthy session is opened.
+- Task/subtask migration and restore handling preserves released migration integrity and safely normalizes server-owned UUID identities across upgrades.
+- Dashboard health diagnostics correctly handle the health endpoint media type.
+- Reloadable Agent and Boost sessions can no longer remain on a stale policy generation when initialization overlaps a global or workspace reload.
+- Rejected global reloads return a non-success operator response with actionable authenticated diagnostics instead of reporting a false successful reload.
+
+### Security
+
+- Agent command defaults are reduced to bounded read-oriented utilities; runtimes, package managers, compilers, shells, Git, and other higher-consequence commands require explicit opt-in.
+- Confirmation authorizations are random, expiring, single-use, and bound to the exact invocation, authenticated scope, and policy generation; replay, mutation, wrong-scope reuse, expiry, and stale-policy retries fail closed.
+- Runtime security identity is namespaced by authoritative auth/trust domain and canonical workspace identity, preventing alias or raw-ID collisions across sessions, throttling, confirmation, and stateless quotas.
+- Resource-aware admission, process-tree memory enforcement, bounded subprocess I/O, and fail-safe workspace publication reduce denial-of-service and mixed-policy exposure.
+- Go **1.25.13** resolves the reachable standard-library vulnerabilities detected by `govulncheck` against Go 1.25.12.
+
+---
+
+
 ## [1.7.0] — 2026-08-05
 
 ### Changed

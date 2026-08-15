@@ -11,6 +11,17 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
+### v1.8.0 highlights
+
+- Active workspace config files are watched while stateful sessions use them; valid edits hot-reload, invalid edits retain the last-known-good policy, and incompatible global reloads are rejected atomically.
+- Resource-aware admission bounds expensive session setup and tool work with fair queues, cancellation, overload handling, and resource-pressure diagnostics.
+- Typed subprocess memory policies add platform-aware process-tree/session/workspace ceilings with fail-closed hard-enforcement mode when requested.
+- Boost mode isolates upstream failures from MCPGate-owned tools, and `batch_execute` can mix local and upstream tools in one bounded call.
+- Confirmation now uses SDK-standard MCP form elicitation with invocation/scope/policy-bound single-use authorizations; command authorization is also tightened around explicit opt-in and resolved executable identity.
+- Claude-compatible project memory now uses MCPGate's dedicated `.mcpgate/memory/` store without owning `MEMORY.md`, with revision-safe tools/dashboard flows and optional sharing with Claude Code.
+- Release publication is offline-signature-gated, and release/CI builds use Go **1.25.13** with the current `govulncheck` fixes.
+
+
 > ## Open-source at 1,000 stars
 >
 > When this repository reaches **1,000 GitHub stars**, the private MCPGate
@@ -182,11 +193,12 @@ http://127.0.0.1:8080/manage
 
 Login with your master API key. The dashboard provides:
 
-- **Overview** — server KPIs (active sessions / cap, health checks, root-user warning)
-- **Sessions** — live session table with kill action and confirm dialog
-- **Audits** — filterable tool invocation log with search, date range, severity, and clear-all
-- **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtask checklist (drag-to-reorder, per-subtask status), inter-task dependency graph (blocked-by picker, done-block guard), priority and progress
-- **Settings** — key rotation, live config reload (re-reads global + workspace config across active sessions), update-available banner, connection status
+- **Overview** — server KPIs, health checks, session/admission state, and root-user warning
+- **Sessions** — live session table with kill action and confirmation dialog
+- **Audits** — filterable completed tool invocation history with search, date range, severity, and clear-all
+- **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtasks, dependency graph, priority, and progress
+- **Memory** — workspace-scoped Claude-compatible memory catalog, search, validation diagnostics, body-on-selection editing, and revision-safe create/update/move/delete flows
+- **Settings** — key rotation, global reload, active workspace generation/validation diagnostics, rejected-reload remediation, update status, and connection state
 
 The dashboard receives live updates via SSE from `/api/events` and supports dark/light theme.
 
@@ -223,8 +235,11 @@ required. No root access is required when installed under `~/.local/bin`.
 
 All endpoints require `Authorization: Bearer <key>` unless `--no-auth` is set.
 
-Endpoints are unified: `/sse` (legacy SSE 2024-11-05) and `/mcp` (Streamable
-HTTP 2025-11-25) both accept a `?mode=` query parameter (default `agent`).
+Endpoints are unified: `/sse` and `/mcp` both accept a `?mode=` query
+parameter (`agent` by default). Stateful SSE/Streamable sessions support the
+initialize-based MCP revisions; stateless Streamable agent mode additionally
+supports MCP `2026-07-28` discovery/MRTR. Unsupported revisions return explicit
+negotiation guidance instead of silently changing protocol behavior.
 
 **Agent mode** (built-in tool suite, no subprocess):
 
@@ -233,6 +248,11 @@ GET  /sse?workspace=/my/workspace
 POST /mcp?workspace=/my/workspace
 Authorization: Bearer <key>
 ```
+
+Use `--stateless` when a client requires sessionless Streamable HTTP. Pending
+confirmation continuations and stateless tool-rate buckets are process-local,
+so multi-replica deployments need consistent routing when one logical flow or
+aggregate quota must stay on one process.
 
 **Bridge mode** (proxy a local stdio MCP process):
 
@@ -249,6 +269,13 @@ POST /mcp?mode=boost&command=php&args=artisan%20boost:mcp&workspace=/my/project
 Authorization: Bearer <key>
 ```
 
+Boost sessions keep MCPGate-owned tools usable when an upstream fails to start,
+exits, times out, or returns malformed protocol data. Upstream-owned operations
+then return a stable unavailable error; opening a new boost session after the
+upstream is repaired restores the merged surface. `batch_execute` uses the same
+ownership routing and can mix local and upstream tools while preserving result
+order and bounded output.
+
 > **`args`** is whitespace-separated (URL-encode spaces as `%20`).
 > **`workspace`** is the project root and **doubles as the subprocess working
 > directory** in bridge/boost modes — there is no separate `cwd` parameter.
@@ -256,6 +283,11 @@ Authorization: Bearer <key>
 > MCP stdio transport spec, so every spec-compliant MCP server works out of
 > the box (`@modelcontextprotocol/server-*`, Laravel Boost, Python `mcp`-SDK
 > servers, custom Go/Rust servers).
+>
+> Confirmation is an interaction safeguard, not an authorization boundary.
+> MCPGate uses standard form elicitation only when the negotiated client
+> advertises it; authentication, per-session ACLs, path/command restrictions,
+> argument validation, and tool policy remain authoritative.
 
 ---
 
@@ -308,14 +340,31 @@ this GitHub release.
 ## Configuration
 
 **Global config:** `~/.mcpgate/config.json`  
-**Workspace override:** `.mcpgate/config.json` inside the workspace root (merged on top of global at session-spawn time)
+**Workspace override:** `.mcpgate/config.json` inside the workspace root.
 
-Config cascade: **built-in defaults → global config → workspace config**.  
-Unknown fields are silently ignored — safe to roll back to older binaries.
+Config cascade: **built-in defaults → global config → workspace config**.
+Workspace overlays may extend explicit command/path permissions and tighten
+supported limits, but cannot weaken inherited security policy.
 
-Run `mcpgate init` inside any workspace to auto-detect the project type and write a starter `.mcpgate/config.json`. Run `mcpgate config show` to inspect the fully-merged effective config for the current workspace.
+Stateful sessions retain their validated workspace overlay while they are live.
+MCPGate watches only those active workspace config targets: a valid edit advances
+that workspace generation and updates matching reloadable Agent/Boost sessions;
+an invalid edit keeps the previous last-known-good overlay. Global reloads first
+rebase every retained active workspace against the proposed replacement and
+reject the entire reload if any active overlay becomes incompatible. Sessions
+that finish setup during a concurrent reload catch up before becoming visible.
 
-Annotated example files are included in this repository:
+Public `/health` exposes only aggregate active/reference/invalid workspace-config
+counts. Authenticated dashboard/admin diagnostics expose per-workspace generation,
+validation details, and the latest rejected global reload with remediation.
+
+Run `mcpgate init` inside a workspace to create a starter config,
+`mcpgate config validate` before publication, and `mcpgate config show` to inspect
+the merged effective policy.
+
+The annotated examples in this repository track the current schema, including
+boost degradation, resource-aware admission, subprocess timeout/memory policies,
+Claude-compatible memory limits, tool activation/rate limits, and confirmation:
 
 - [`config.global.example.json`](config.global.example.json) — copy to `~/.mcpgate/config.json`
 - [`config.example.json`](config.example.json) — copy to `<workspace>/.mcpgate/config.json`

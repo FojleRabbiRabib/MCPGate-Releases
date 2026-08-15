@@ -46,28 +46,60 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
 
 - Bearer-token or master-API-key bypass.
 - OAuth flow attacks against the built-in Authorization Server
-  (`/authorize`, `/token`, `/introspect`, `/revoke`).
-- External-IdP path attacks (JWT signature forgery, `alg=none` acceptance,
-  JWKS spoofing, introspection-cache poisoning).
+  (`/authorize`, `/token`, `/introspect`, `/revoke`) or external IdP verification.
 - `X-Forwarded-*` spoofing past the trusted-proxies allowlist.
-- Path traversal escaping the workspace root.
-- Command injection through any tool's argument plumbing.
-- Privilege escalation via the admin endpoint.
-- Information disclosure of the master API key or OAuth secrets in logs,
-  error messages, or audit rows.
-- Denial-of-service in a default configuration.
-- Dependency vulnerabilities with a concrete exploit path in mcpgate.
+- Path traversal, symlink escape, or denied-path bypass outside an approved workspace.
+- Project-memory isolation failures, including unauthorized `.mcpgate` mutation,
+  revision-precondition bypass, or disclosure of memory bodies / detected credential-like values.
+- Session admission or lifecycle bypass that exceeds configured capacity, reuses
+  closing session identity, escapes draining, or observes a mixed policy generation.
+- Command injection or command-policy bypass through agent tools, bridge, or boost.
+- Confirmation authorization replay, wrong-scope reuse, mutation, or stale-policy acceptance.
+- Privilege escalation through the authenticated admin/dashboard surfaces.
+- Information disclosure of master keys, OAuth secrets, confirmation records,
+  private workspace paths on public endpoints, raw tool arguments/results, or sensitive audit data.
+- Denial-of-service through default-config resource exhaustion, unbounded queues,
+  subprocess trees, session/goroutine growth, or protocol buffering.
+- Dependency or Go standard-library vulnerabilities with a concrete reachable path in MCPGate.
 
 ## Out of scope
 
-- Issues requiring the attacker to already have local user access on the
-  machine running mcpgate (the threat model assumes the local machine is
-  trusted).
-- The deliberate opt-in `--no-auth` mode exposing endpoints — this is logged
-  prominently when combined with a non-loopback bind.
-- Theoretical issues without a proof-of-concept.
-- Findings against third-party MCP servers proxied via bridge mode — file
-  those upstream with the affected project.
+- Issues requiring the attacker to already have trusted local-user access to the
+  machine running MCPGate, except where a documented cross-user boundary is intended.
+- The deliberate opt-in `--no-auth` mode exposing endpoints when the operator has
+  explicitly enabled the required unsafe public override.
+- Theoretical issues without a concrete proof-of-concept or reachable security impact.
+- Findings in third-party MCP servers proxied through bridge/boost that do not
+  result from MCPGate's own validation, isolation, or transport behavior.
+
+---
+
+## Runtime security properties
+
+- **Atomic policy publication:** global runtime policy and retained active workspace
+  overlays are validated before publication. An invalid workspace edit keeps its
+  last-known-good overlay; a global replacement that would invalidate an active
+  workspace is rejected as a whole. Reloadable sessions finishing setup during a
+  concurrent publication catch up before becoming registry-visible.
+- **Bounded admission and lifecycle:** stateful session capacity is reserved before
+  setup, expensive setup/tool work passes through bounded fair admission queues,
+  and cancellation/draining/resource-pressure failures return stable recovery
+  guidance without exposing principal or workspace identifiers in public telemetry.
+- **Command and subprocess containment:** command execution is allow-list based;
+  argument policy, immutable timeout snapshots, bounded output, process-tree cleanup,
+  and optional execution-memory ceilings apply to agent tools and bridge/boost work.
+- **Standard confirmation flows:** confirmation is capability-driven and uses MCP
+  form elicitation when advertised. Pending authorizations are random, expiring,
+  single-use, and bound to the exact invocation, authenticated scope, and policy
+  identity; replay, mutation, wrong-scope, and stale-policy retries fail closed.
+- **Memory isolation:** dedicated project-memory operations use a confined,
+  identity-pinned root with optimistic revisions and sensitive-content scanning.
+  Generic filesystem tools do not gain a write path into `.mcpgate`, and audit
+  records omit memory bodies and detected credential-like values.
+- **Sanitized diagnostics:** public health and metrics expose aggregate or
+  low-cardinality state. Authenticated operator surfaces may expose workspace
+  validation details needed for remediation, but credentials, raw tool arguments,
+  results, confirmation secrets, and sensitive subprocess payloads are excluded.
 
 ---
 

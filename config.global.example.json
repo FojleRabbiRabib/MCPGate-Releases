@@ -1,25 +1,68 @@
 // MCPGate global config example — copy to ~/.mcpgate/config.json and edit.
 // Controls server-wide behaviour. Applied once at startup and on SIGHUP / hot-reload.
 //
-// Workspace configs (.mcpgate/config.json inside a project) are merged on top
-// at session-spawn time and may extend — but never restrict — the security
-// policy set here.
+// Workspace configs (.mcpgate/config.json inside a project) are merged on top.
+// Stateful sessions retain the validated workspace overlay while active and watch
+// that config target for valid replacements; invalid edits preserve the previous
+// last-known-good overlay. Command additions extend both execute_command and
+// bridge/boost spawning while the two built-in base command lists remain distinct.
 //
 // Run `mcpgate config show` to inspect the fully-merged effective config.
 // Run `mcpgate config validate` to verify this file without starting the server.
 {
   "version": "1.0.0",
 
+  // Keep MCPGate-owned tools available if the boost upstream cannot start, dies,
+  // hangs, or returns malformed protocol data. Resource-policy failures still fail closed.
+  "boost": { "degradeOnUpstreamFailure": true },
+
   // ── Runtime limits ────────────────────────────────────────────────────────
   "limits": {
     "maxSessions": 100,        // Max concurrent sessions across all types
     "maxFileSize": 10485760,   // Max readable/writable file size in bytes (10 MB)
     "outputLimit": 153600,     // Per-tool output truncation threshold in bytes (150 KB)
-    "commandTimeout": 60000,   // execute_command kill timeout in milliseconds
+    "commandTimeout": 60000,   // Subprocess fallback and hard ceiling in milliseconds
     "idleTimeout": 600000,     // Bridge session idle timeout in milliseconds (10 min)
     "shutdownTimeout": 15000,  // Graceful-shutdown wait in milliseconds
     "maxBatchOperations": 15,  // Max operations per batch_execute call
-    "batchOutputLimit": 921600 // Batch aggregate response byte cap (900 KB)
+    "batchOutputLimit": 921600, // Batch aggregate response byte cap (900 KB)
+
+    // Process-tree memory budgets in bytes. Zero means unlimited. "auto" uses
+    // hard platform enforcement when available and otherwise a monitored
+    // fallback; "hard-required" rejects capped work without a hard backend;
+    // "monitor" always uses the monitored backend.
+    "executionMemory": {
+      "enforcement": "auto",
+      "maxSubprocess": 0,
+      "maxSession": 0,
+      "maxAggregate": 0
+    },
+
+    // Process-wide bounded fair scheduling for expensive setup and tool work.
+    // maxQueueWait is milliseconds; all fields are global-only and hot-reloaded.
+    "admission": {
+      "toolConcurrency": 32,
+      "sessionSetupConcurrency": 8,
+      "maxQueued": 256,
+      "maxQueuedPerScope": 32,
+      "maxQueueWait": 30000
+    }
+  },
+
+  // ── Claude Code memory ────────────────────────────────────────────────────
+  // Dedicated memory operations manage Claude project instructions/rules and
+  // MCPGate's .mcpgate/memory/ store. Users may symlink that directory to
+  // Claude Code's project memory location when shared files are desired.
+  // Generic filesystem tools do not gain memory write access. Writes occur only
+  // through explicit dedicated memory create/update/move/delete operations.
+  // Global hard ceilings are 1,000 files and 16 MiB total decoded content.
+  "memory": {
+    "mode": "read-write",     // disabled | read-only | read-write
+    "maxFiles": 200,
+    "maxFileSize": 65536,     // bytes per memory file
+    "maxTotalSize": 4194304,  // aggregate bytes across all memory surfaces
+    "maxSearchResults": 50,
+    "maxSnippetBytes": 2048
   },
 
   // ── Security ──────────────────────────────────────────────────────────────
@@ -29,13 +72,14 @@
     // Workspace configs cannot remove entries from this list.
     "deniedPaths": [],
 
-    // Master command allow-list for bridge-mode spawn and execute_command.
-    // Default includes: node, npx, bun, deno, python3, uvx, git, go, cargo, ...
-    // Replaces the built-in list when non-empty — prefer additionalAllowedCommands
-    // to extend without clobbering the defaults.
+    // Explicit global replacement for both command surfaces. When empty, the
+    // bridge/boost defaults are bun, deno, node, npx, php, python, python3, uvx;
+    // execute_command defaults are basename, dirname, head, pwd, tail, which.
     "allowedCommands": [],
 
-    // Appended to allowedCommands. Both global and workspace may contribute.
+    // Explicit additive command permissions. Global and workspace entries
+    // extend both execute_command and bridge/boost spawning while preserving
+    // the distinct built-in base lists. Add "uv" to permit command=uv.
     "additionalAllowedCommands": [],
 
     // Additional path prefixes the agent may read/write.
@@ -51,7 +95,8 @@
     "requireReadBeforeWrite": false,
 
     // Per-command argument blocklists merged with hardcoded safe defaults.
-    // Prevents dangerous flag injection (e.g. git --upload-pack, rm -rf /).
+    // Configured blocks apply to agent execution and bridge/boost spawning.
+    // Added bridge/boost commands also receive generic-command hardcoded blocks.
     "commandArgBlocklist": {
       "git": ["--upload-pack", "--receive-pack"]
     }
@@ -81,8 +126,8 @@
 
     // Tool CATEGORIES to enable (only when mode = "manual").
     // Known values: android, batch, commands, filesystem, formatting, git,
-    //               images, laravel, ml, package_manager, project, tasks,
-    //               testing, web
+    //               images, laravel, memory, ml, package_manager, project,
+    //               tasks, testing, web
     "enabled": [],
 
     // Tool CATEGORIES to suppress even in "auto" or "all" mode.
@@ -103,33 +148,63 @@
     "disabledTools": [],
 
     // Per-tool invocation rate limits. Absent = unlimited for that tool.
+    // Stateful agents keep session-local buckets. Stateless /mcp retains bounded
+    // process-local buckets by authenticated principal + workspace across
+    // independent requests and ?tools= ACL changes. Unchanged reloads preserve
+    // consumed quota; a changed rate policy starts a fresh configured bucket.
     "rateLimit": {
       "web_search":      { "requests": 20, "per": "minute" },
       "execute_command": { "requests": 60, "per": "minute" }
     },
 
-    // Per-tool destructive-confirmation policy. Tools that can destroy data
-    // (delete_file, laravel_artisan's db:wipe/migrate:fresh, …) ask the client
-    // to confirm via the MCP elicitation flow before running. Each value is:
-    //   "auto"   — built-in default: confirm only when the invocation is
-    //              actually destructive (delete_file always; laravel_artisan
-    //              only for destructive subcommands). Same as omitting the tool.
-    //   "always" — confirm on every call, even non-destructive ones.
-    //   "never"  — never prompt (use only for trusted, automated environments).
-    // Only tools that actually perform a confirmable action honor this —
-    // currently "delete_file" and "laravel_artisan". Entries for other tool
-    // names are accepted but have no effect (no prompt is wired for them yet).
+    // Subprocess execution budgets in milliseconds. Category entries are
+    // defaults; individual tool entries win and may be higher or lower than
+    // their category, but every value must remain at or below
+    // limits.commandTimeout. Omit a name to inherit the next broader policy.
+    // Valid category and tool names are listed in README.md.
+    "executionTimeouts": {
+      "categories": {
+        "commands": 45000,
+        "formatting": 20000,
+        "testing": 45000
+      },
+      "tools": {
+        "execute_command": 30000,
+        "lint_code": 15000,
+        "run_tests": 30000,
+        "test_coverage": 40000
+      }
+    },
+
+    // Optional per-category and per-tool subprocess memory ceilings in bytes.
+    // An omitted name inherits limits.executionMemory.maxSubprocess. Zero means
+    // unlimited only when the inherited process ceiling is also unlimited.
+    "executionMemory": {
+      "categories": {},
+      "tools": {}
+    },
+
+    // Per-tool confirmation policy; never selected by client name or User-Agent.
+    // Each value is:
+    //   "auto"   — confirm invocations classified as high-consequence.
+    //   "always" — confirm every invocation when the negotiated MCP client can
+    //                complete a standard confirmation flow.
+    //   "never"  — skip confirmation.
+    // Form confirmation is emitted only when the client advertises form elicitation.
+    // On 2026-07-28+ the SDK carries InputRequests/InputResponses through MRTR;
+    // initialize-based clients use the same contract through the SDK bridge. Clients without form elicitation
+    // continue without a server-side confirmation interaction; destructiveHint,
+    // ACLs, path/command policy, and other authorization controls remain in force.
+    // Standard confirmation uses a random single-use authorization bound to the
+    // exact decoded invocation and immutable policy identity; approval executes
+    // the captured action instead of accepting replacement arguments.
+    // Only tools wired to confirmation policy honor these entries. Confirmable
+    // actions include destructive filesystem/task operations, consequential Git
+    // changes, runtime/project execution, dependency mutation, archive extraction,
+    // Android mutations, and Laravel destructive execution.
     "confirm": {
       "delete_file": "auto"
     },
-
-    // What to do when a confirmation is REQUIRED but the connected client
-    // cannot elicit (no elicitation capability, or it never answers):
-    //   "fail-open"   — proceed anyway (default; keeps headless automation
-    //                   working — most CLI/automation clients can't prompt).
-    //   "fail-closed" — refuse the action. Pick this for a hard gate.
-    // GLOBAL ONLY — a workspace config cannot weaken this.
-    "confirmOnUnavailable": "fail-open",
 
     // Whether a per-workspace .mcpgate/config.json may LOOSEN a confirmation
     // (e.g. set a destructive tool to "never"). When false (default) a workspace

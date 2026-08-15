@@ -1,18 +1,27 @@
 // MCPGate workspace config example — copy to .mcpgate/config.json and edit.
-// Loaded fresh at session-spawn time; edits take effect on the next new session
-// without restarting the server.
+// Loaded for new requests/sessions and retained while stateful sessions for this
+// workspace are active. Active workspace files are watched: valid edits publish
+// to matching reloadable sessions, while invalid edits keep the last-known-good
+// workspace overlay without restarting the server.
 //
 // Cascade: built-in defaults → ~/.mcpgate/config.json → this file.
-// Workspace configs may only EXTEND (never restrict) allowed commands/paths,
-// and may only TIGHTEN (never loosen) size and timeout limits.
+// Workspace configs may only EXTEND explicit command permissions and allowed
+// paths; additions apply to agent execute_command and bridge/boost spawning
+// without replacing either built-in base list. Resource limits may only be
+// TIGHTENED (never loosened).
 //
 // Run `mcpgate config show` inside this workspace to inspect the merged result.
 {
   "version": "1.0.0",
 
+  // Workspace override for boost resilience. true keeps local MCPGate tools
+  // usable when the upstream cannot start or later becomes unavailable.
+  "boost": { "degradeOnUpstreamFailure": true },
+
   // ── Security extensions ────────────────────────────────────────────────
   "permissions": {
-    // Appended to the global additionalAllowedCommands list (append-only).
+    // Extra binaries appended to both resolved command surfaces. For example,
+    // add "uv" to permit execute_command and bridge/boost command=uv.
     "additionalAllowedCommands": [],
 
     // Appended to the global additionalAllowedPaths list (append-only).
@@ -23,17 +32,37 @@
     // "enableCommandExecution": true,
 
     // Extra per-command argument blocklists merged on top of the global list.
+    // These also constrain bridge/boost subprocess arguments for this workspace.
     "commandArgBlocklist": {}
   },
 
   // ── Limit overrides ──────────────────────────────────────────────────────
-  // Workspace may only LOWER these values. Raising above the global cap is
-  // silently ignored.
+  // Workspace values are tighten-only. Invalid attempts to widen inherited
+  // command or execution-memory policy reject the workspace overlay.
   "limits": {
     // "maxFileSize": 5242880,    // bytes  — max readable/writable file size
     // "outputLimit": 102400,     // bytes  — per-tool output truncation threshold
-    // "commandTimeout": 30000,   // ms     — execute_command kill timeout
-    // "batchOutputLimit": 524288 // bytes  — batch_execute aggregate response cap
+    // "commandTimeout": 30000,   // ms     — subprocess fallback and hard ceiling
+    // "batchOutputLimit": 524288, // bytes — batch_execute aggregate response cap
+    // "executionMemory": {
+    //   "enforcement": "hard-required", // may only strengthen inherited posture
+    //   "maxSubprocess": 268435456,
+    //   "maxSession": 536870912,
+    //   "maxAggregate": 1073741824
+    // }
+  },
+
+  // ── Claude Code memory ────────────────────────────────────────────────────
+  // Workspace values may only tighten the inherited MCPGate access policy.
+  // Claude's auto-memory directory/location and MEMORY.md loading boundary are
+  // Claude Code semantics and are not redirected or made configurable here.
+  "memory": {
+    // "mode": "read-only",       // disabled | read-only | read-write
+    // "maxFiles": 100,
+    // "maxFileSize": 32768,      // bytes per memory file
+    // "maxTotalSize": 2097152,   // aggregate bytes across all memory surfaces
+    // "maxSearchResults": 25,
+    // "maxSnippetBytes": 1024
   },
 
   // ── Tool overrides ────────────────────────────────────────────────────────
@@ -46,8 +75,8 @@
 
     // Tool CATEGORIES to enable (only when mode = "manual").
     // Known values: android, batch, commands, filesystem, formatting, git,
-    //               images, laravel, ml, package_manager, project, tasks,
-    //               testing, web
+    //               images, laravel, memory, ml, package_manager, project,
+    //               tasks, testing, web
     // "enabled": [],
 
     // Tool CATEGORIES to suppress even in "auto" or "all" mode.
@@ -69,11 +98,32 @@
     // Do NOT put tool names under "disabled" — that field is for categories only.
     // "disabledTools": ["git_push", "git_merge", "run_tests", "web_search"],
 
+    // Tighten inherited subprocess budgets for this workspace. Values are
+    // milliseconds. A workspace value must be no greater than the currently
+    // inherited timeout for that category/tool; otherwise config publication
+    // fails and the last-known-good policy remains active.
+    "executionTimeouts": {
+      "categories": {
+        "testing": 20000
+      },
+      "tools": {
+        "run_tests": 15000,
+        "test_coverage": 18000
+      }
+    },
+
+    // Optional execution-memory overrides are also tighten-only relative to the
+    // inherited effective category/tool policy. Values are bytes.
+    "executionMemory": {
+      "categories": {},
+      "tools": {}
+    }
+
     // Per-tool destructive-confirmation policy ("auto" | "always" | "never").
     // A workspace may only TIGHTEN (raise a tool toward "always"); loosening
     // toward "never" is ignored unless the GLOBAL config sets
     // tools.allowWorkspaceConfirmOverrides. Honored by tools that perform a
-    // confirmable action (currently delete_file, laravel_artisan).
+    // confirmable action.
     // "confirm": { "delete_file": "always" }
   }
 }
