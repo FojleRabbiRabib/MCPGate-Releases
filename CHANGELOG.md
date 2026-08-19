@@ -7,6 +7,35 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.9.0] — 2026-08-20
+
+### Added
+
+- **Configured multi-upstream bridge and boost:** run multiple named stdio MCP servers from trusted global configuration and expose one merged MCP surface to clients.
+- **Upstream health and resilience controls:** configure required/optional upstreams, startup/request timeouts, health checks, environment inheritance, and conflict handling.
+- **Host-wide subprocess memory ceiling:** `limits.executionMemory.maxHost` can cap finite subprocess reservations across the MCPGate process.
+
+### Changed
+
+- Bridge now exposes configured upstreams only; boost exposes the same upstreams plus MCPGate's built-in agent tools.
+- Bridge/boost process topology now comes from global configuration. Client `command` and `args` query parameters are no longer accepted.
+- Tool admission better preserves responsiveness when builds, tests, installs, and other heavy work run concurrently.
+
+### Fixed
+
+- Compatible fresh Streamable bridge/boost connections from the same logical client session can reuse the existing stateful runtime instead of starting duplicate persistent upstream processes.
+- Standalone Streamable server-message delivery no longer loses a queued message when receivers overlap, disconnect, or are superseded.
+- Canceled requests release queued work more promptly instead of remaining blocked behind unrelated operations.
+
+### Security
+
+- Workspace configuration can only tighten configured upstream policy and cannot introduce new executable topology.
+- Upstream environment inheritance is explicitly allow-listed, and upstream diagnostics are sanitized before entering application logs.
+- Logical-session correlation is not an authorization mechanism; raw correlation and MCP session identifiers are excluded from ordinary lifecycle telemetry.
+
+---
+
+
 ## [1.8.0] — 2026-08-15
 
 ### Added

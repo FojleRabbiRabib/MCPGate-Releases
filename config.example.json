@@ -5,23 +5,32 @@
 // workspace overlay without restarting the server.
 //
 // Cascade: built-in defaults → ~/.mcpgate/config.json → this file.
-// Workspace configs may only EXTEND explicit command permissions and allowed
-// paths; additions apply to agent execute_command and bridge/boost spawning
-// without replacing either built-in base list. Resource limits may only be
-// TIGHTENED (never loosened).
+// Workspace configs may extend explicit agent command permissions and allowed
+// paths, but cannot add or replace bridge/boost process topology. Resource and
+// configured-upstream policy may only be TIGHTENED (never loosened).
 //
 // Run `mcpgate config show` inside this workspace to inspect the merged result.
 {
   "version": "1.0.0",
 
-  // Workspace override for boost resilience. true keeps local MCPGate tools
-  // usable when the upstream cannot start or later becomes unavailable.
-  "boost": { "degradeOnUpstreamFailure": true },
+  // Workspace boost settings are tighten-only. The named upstream must already
+  // exist in trusted global configuration; workspace config cannot replace its
+  // executable, arguments, working directory, environment, startup, or health policy.
+  "boost": {
+    "degradeOnUpstreamFailure": false,
+    "upstreams": {
+      "project": {
+        "required": true,
+        "startupTimeoutMs": 10000,
+        "requestTimeoutMs": 20000
+      }
+    }
+  },
 
   // ── Security extensions ────────────────────────────────────────────────
   "permissions": {
-    // Extra binaries appended to both resolved command surfaces. For example,
-    // add "uv" to permit execute_command and bridge/boost command=uv.
+    // Extra binaries for agent execute_command. This does not add or authorize
+    // a new bridge/boost upstream executable.
     "additionalAllowedCommands": [],
 
     // Appended to the global additionalAllowedPaths list (append-only).
@@ -49,6 +58,7 @@
     //   "maxSubprocess": 268435456,
     //   "maxSession": 536870912,
     //   "maxAggregate": 1073741824
+    //   // maxHost is global-only and cannot be set in workspace config.
     // }
   },
 

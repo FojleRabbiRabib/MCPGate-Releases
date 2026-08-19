@@ -4,17 +4,39 @@
 // Workspace configs (.mcpgate/config.json inside a project) are merged on top.
 // Stateful sessions retain the validated workspace overlay while active and watch
 // that config target for valid replacements; invalid edits preserve the previous
-// last-known-good overlay. Command additions extend both execute_command and
-// bridge/boost spawning while the two built-in base command lists remain distinct.
+// last-known-good overlay. Bridge/boost process topology is defined only by trusted
+// global configuration; workspace policy may tighten an inherited definition.
 //
 // Run `mcpgate config show` to inspect the fully-merged effective config.
 // Run `mcpgate config validate` to verify this file without starting the server.
 {
   "version": "1.0.0",
 
-  // Keep MCPGate-owned tools available if the boost upstream cannot start, dies,
-  // hangs, or returns malformed protocol data. Resource-policy failures still fail closed.
-  "boost": { "degradeOnUpstreamFailure": true },
+  // Trusted stdio MCP upstreams used by bridge and boost sessions.
+  // Bridge exposes configured upstreams only; boost also adds MCPGate tools.
+  "boost": {
+    "degradeOnUpstreamFailure": true,
+    "conflictStrategy": "error", // "error" or "local-first"
+    "allowedEnvironmentVariables": ["PROJECT_TOKEN"],
+    "upstreams": {
+      "project": {
+        "enabled": true,
+        "required": false,
+        "command": "node",
+        "args": ["server.js"],
+        "cwd": ".",
+        "environment": ["PROJECT_TOKEN"],
+        "startup": "eager",
+        "startupTimeoutMs": 15000,
+        "requestTimeoutMs": 30000,
+        "healthCheck": {
+          "enabled": true,
+          "intervalMs": 30000,
+          "timeoutMs": 5000
+        }
+      }
+    }
+  },
 
   // ── Runtime limits ────────────────────────────────────────────────────────
   "limits": {
@@ -35,7 +57,8 @@
       "enforcement": "auto",
       "maxSubprocess": 0,
       "maxSession": 0,
-      "maxAggregate": 0
+      "maxAggregate": 0,
+      "maxHost": 0
     },
 
     // Process-wide bounded fair scheduling for expensive setup and tool work.
@@ -77,9 +100,9 @@
     // execute_command defaults are basename, dirname, head, pwd, tail, which.
     "allowedCommands": [],
 
-    // Explicit additive command permissions. Global and workspace entries
-    // extend both execute_command and bridge/boost spawning while preserving
-    // the distinct built-in base lists. Add "uv" to permit command=uv.
+    // Explicit additive command permissions. Global entries can permit commands
+    // referenced by trusted boost.upstreams and also extend execute_command.
+    // Workspace entries do not define or authorize new upstream topology.
     "additionalAllowedCommands": [],
 
     // Additional path prefixes the agent may read/write.

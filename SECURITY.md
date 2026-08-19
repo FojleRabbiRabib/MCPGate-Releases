@@ -54,6 +54,8 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
 - Session admission or lifecycle bypass that exceeds configured capacity, reuses
   closing session identity, escapes draining, or observes a mixed policy generation.
 - Command injection or command-policy bypass through agent tools, bridge, or boost.
+- Configured-upstream policy bypass that lets client/workspace input introduce or widen trusted bridge/boost process topology or environment inheritance.
+- Cross-session access caused by misuse of Streamable logical-session correlation or MCP session identifiers.
 - Confirmation authorization replay, wrong-scope reuse, mutation, or stale-policy acceptance.
 - Privilege escalation through the authenticated admin/dashboard surfaces.
 - Information disclosure of master keys, OAuth secrets, confirmation records,
@@ -88,6 +90,12 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
 - **Command and subprocess containment:** command execution is allow-list based;
   argument policy, immutable timeout snapshots, bounded output, process-tree cleanup,
   and optional execution-memory ceilings apply to agent tools and bridge/boost work.
+- **Trusted bridge/boost topology:** upstream processes are defined by global
+  configuration. Workspace policy may tighten inherited definitions but cannot add
+  new executables or widen inherited environment/startup/timeout policy.
+- **Session correlation isolation:** logical-session hints are correlation only,
+  never authorization, and are accepted only inside the authenticated session scope.
+  Raw correlation and MCP session identifiers are excluded from ordinary lifecycle telemetry.
 - **Standard confirmation flows:** confirmation is capability-driven and uses MCP
   form elicitation when advertised. Pending authorizations are random, expiring,
   single-use, and bound to the exact invocation, authenticated scope, and policy

@@ -11,15 +11,14 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-### v1.8.0 highlights
+### v1.9.0 highlights
 
-- Active workspace config files are watched while stateful sessions use them; valid edits hot-reload, invalid edits retain the last-known-good policy, and incompatible global reloads are rejected atomically.
-- Resource-aware admission bounds expensive session setup and tool work with fair queues, cancellation, overload handling, and resource-pressure diagnostics.
-- Typed subprocess memory policies add platform-aware process-tree/session/workspace ceilings with fail-closed hard-enforcement mode when requested.
-- Boost mode isolates upstream failures from MCPGate-owned tools, and `batch_execute` can mix local and upstream tools in one bounded call.
-- Confirmation now uses SDK-standard MCP form elicitation with invocation/scope/policy-bound single-use authorizations; command authorization is also tightened around explicit opt-in and resolved executable identity.
-- Claude-compatible project memory now uses MCPGate's dedicated `.mcpgate/memory/` store without owning `MEMORY.md`, with revision-safe tools/dashboard flows and optional sharing with Claude Code.
-- Release publication is offline-signature-gated, and release/CI builds use Go **1.25.13** with the current `govulncheck` fixes.
+- Bridge and boost can combine multiple named stdio MCP upstreams from trusted global configuration.
+- Bridge exposes configured upstreams only; boost adds MCPGate's built-in tool surface on top.
+- Client-supplied bridge/boost `command` and `args` topology has been removed in favor of administrator-controlled configuration.
+- Required/optional upstreams support startup/request timeouts, health checks, environment allow-lists, and deterministic conflict handling.
+- Streamable bridge/boost sessions avoid duplicate persistent upstream runtimes when compatible fresh client connections belong to the same logical session.
+- Tool scheduling, cancellation handling, and host-wide subprocess memory limits are strengthened for high-concurrency workloads.
 
 
 > ## Open-source at 1,000 stars
@@ -254,35 +253,32 @@ confirmation continuations and stateless tool-rate buckets are process-local,
 so multi-replica deployments need consistent routing when one logical flow or
 aggregate quota must stay on one process.
 
-**Bridge mode** (proxy a local stdio MCP process):
+**Bridge mode** — configured upstream MCP surface only:
 
 ```
-GET  /sse?mode=bridge&command=npx&args=-y%20@modelcontextprotocol/server-filesystem%20.&workspace=/my/workspace
-POST /mcp?mode=bridge&command=php&args=artisan%20boost:mcp&workspace=/my/project
+GET  /sse?mode=bridge&workspace=/my/workspace
+POST /mcp?mode=bridge&workspace=/my/project
 Authorization: Bearer <key>
 ```
 
-**Boost mode** (stdio MCP process + built-in agent tools merged):
+**Boost mode** — configured upstreams plus MCPGate built-in tools:
 
 ```
-POST /mcp?mode=boost&command=php&args=artisan%20boost:mcp&workspace=/my/project
+POST /mcp?mode=boost&workspace=/my/project
 Authorization: Bearer <key>
 ```
 
-Boost sessions keep MCPGate-owned tools usable when an upstream fails to start,
-exits, times out, or returns malformed protocol data. Upstream-owned operations
-then return a stable unavailable error; opening a new boost session after the
-upstream is repaired restores the merged surface. `batch_execute` uses the same
-ownership routing and can mix local and upstream tools while preserving result
-order and bounded output.
+Define bridge/boost upstreams in the global `boost.upstreams` configuration.
+Multiple enabled upstreams are merged into one MCP surface. Optional upstreams
+may degrade independently; required upstream failures follow the configured
+fail-closed policy.
 
-> **`args`** is whitespace-separated (URL-encode spaces as `%20`).
-> **`workspace`** is the project root and **doubles as the subprocess working
-> directory** in bridge/boost modes — there is no separate `cwd` parameter.
-> Bridge/boost subprocess communication uses newline-delimited JSON per the
-> MCP stdio transport spec, so every spec-compliant MCP server works out of
-> the box (`@modelcontextprotocol/server-*`, Laravel Boost, Python `mcp`-SDK
-> servers, custom Go/Rust servers).
+> Bridge/boost `command` and `args` query parameters are no longer supported.
+> Executable, arguments, working directory, allowed inherited environment names,
+> startup mode, timeouts, and health checks come from trusted global config.
+> Workspace config may tighten an inherited upstream but cannot add new process
+> topology. `workspace` remains required and is the base for workspace-relative
+> upstream working directories.
 >
 > Confirmation is an interaction safeguard, not an authorization boundary.
 > MCPGate uses standard form elicitation only when the negotiated client
@@ -362,9 +358,10 @@ Run `mcpgate init` inside a workspace to create a starter config,
 `mcpgate config validate` before publication, and `mcpgate config show` to inspect
 the merged effective policy.
 
-The annotated examples in this repository track the current schema, including
-boost degradation, resource-aware admission, subprocess timeout/memory policies,
-Claude-compatible memory limits, tool activation/rate limits, and confirmation:
+The annotated examples in this repository track the supported public schema,
+including configured boost upstreams, admission controls, subprocess timeout and
+memory policies, Claude-compatible memory limits, tool activation/rate limits,
+and confirmation:
 
 - [`config.global.example.json`](config.global.example.json) — copy to `~/.mcpgate/config.json`
 - [`config.example.json`](config.example.json) — copy to `<workspace>/.mcpgate/config.json`
