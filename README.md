@@ -11,14 +11,14 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-### v1.9.0 highlights
+### v1.10.0 highlights
 
-- Bridge and boost can combine multiple named stdio MCP upstreams from trusted global configuration.
-- Bridge exposes configured upstreams only; boost adds MCPGate's built-in tool surface on top.
-- Client-supplied bridge/boost `command` and `args` topology has been removed in favor of administrator-controlled configuration.
-- Required/optional upstreams support startup/request timeouts, health checks, environment allow-lists, and deterministic conflict handling.
-- Streamable bridge/boost sessions avoid duplicate persistent upstream runtimes when compatible fresh client connections belong to the same logical session.
-- Tool scheduling, cancellation handling, and host-wide subprocess memory limits are strengthened for high-concurrency workloads.
+- **Named MCP servers with `/mcp/{routeKey}`:** clean endpoints where mode, workspace, and upstreams resolve server-side with strict cross-server session isolation.
+- **Remote Streamable HTTP and SSE upstreams:** connect to remote MCP servers alongside local stdio upstreams with timeout, authentication, and egress protection.
+- **Dashboard Named Servers UI:** manage, edit, validate, enable/disable, and gracefully drain named MCP servers from `/manage/servers`.
+- **Browser OAuth compatibility:** instant meta refresh navigation prevents third-party OAuth provider redirect blocking under Content Security Policy.
+- **Pluggable crash logging & credential sanitization:** structured crash reporting with thread-safe file/buffer sinks and panic credential redaction.
+- **Enhanced `web_fetch`:** DOM-aware extraction, discussion preservation, Markdown formatting, and public-only network egress enforcement.
 
 
 > ## Open-source at 1,000 stars
@@ -193,6 +193,7 @@ http://127.0.0.1:8080/manage
 Login with your master API key. The dashboard provides:
 
 - **Overview** — server KPIs, health checks, session/admission state, and root-user warning
+- **Named Servers** — manage, edit, validate, enable/disable, and gracefully drain named MCP servers
 - **Sessions** — live session table with kill action and confirmation dialog
 - **Audits** — filterable completed tool invocation history with search, date range, severity, and clear-all
 - **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtasks, dependency graph, priority, and progress
@@ -234,17 +235,15 @@ required. No root access is required when installed under `~/.local/bin`.
 
 All endpoints require `Authorization: Bearer <key>` unless `--no-auth` is set.
 
-Endpoints are unified: `/sse` and `/mcp` both accept a `?mode=` query
-parameter (`agent` by default). Stateful SSE/Streamable sessions support the
-initialize-based MCP revisions; stateless Streamable agent mode additionally
-supports MCP `2026-07-28` discovery/MRTR. Unsupported revisions return explicit
-negotiation guidance instead of silently changing protocol behavior.
+Named MCP servers are addressed via `/mcp/{routeKey}`. Each route key resolves
+server-side to one mode, one workspace, and a set of trusted upstreams — client
+query parameters cannot override server topology. The bare `/mcp` endpoint
+returns 404 `route_key_required`.
 
 **Agent mode** (built-in tool suite, no subprocess):
 
 ```
-GET  /sse?workspace=/my/workspace
-POST /mcp?workspace=/my/workspace
+POST /mcp/my-project
 Authorization: Bearer <key>
 ```
 
@@ -256,31 +255,27 @@ aggregate quota must stay on one process.
 **Bridge mode** — configured upstream MCP surface only:
 
 ```
-GET  /sse?mode=bridge&workspace=/my/workspace
-POST /mcp?mode=bridge&workspace=/my/project
+POST /mcp/browser
 Authorization: Bearer <key>
 ```
 
 **Boost mode** — configured upstreams plus MCPGate built-in tools:
 
 ```
-POST /mcp?mode=boost&workspace=/my/project
+POST /mcp/my-project
 Authorization: Bearer <key>
 ```
 
-Define bridge/boost upstreams in the global `boost.upstreams` configuration.
-Multiple enabled upstreams are merged into one MCP surface. Optional upstreams
-may degrade independently; required upstream failures follow the configured
-fail-closed policy.
+Define named servers in `~/.mcpgate/config.json` (`servers` array) or manage them
+via the dashboard at `/manage/servers`.
 
-> Bridge/boost `command` and `args` query parameters are no longer supported.
-> Executable, arguments, working directory, allowed inherited environment names,
-> startup mode, timeouts, and health checks come from trusted global config.
-> Workspace config may tighten an inherited upstream but cannot add new process
-> topology. `workspace` remains required and is the base for workspace-relative
-> upstream working directories.
+> **Cross-server isolation:** A `Mcp-Session-Id` minted via `/mcp/server-a` cannot
+> attach via `/mcp/server-b`. Each session is bound to its route key.
 >
-> Confirmation is an interaction safeguard, not an authorization boundary.
+> **Legacy SSE:** Legacy `/sse` and `/messages` endpoints still accept `?mode=` +
+> `?workspace=` for backward compatibility with older clients.
+>
+> **Confirmation** is an interaction safeguard, not an authorization boundary.
 > MCPGate uses standard form elicitation only when the negotiated client
 > advertises it; authentication, per-session ACLs, path/command restrictions,
 > argument validation, and tool policy remain authoritative.

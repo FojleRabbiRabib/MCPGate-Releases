@@ -4,29 +4,32 @@
 // Workspace configs (.mcpgate/config.json inside a project) are merged on top.
 // Stateful sessions retain the validated workspace overlay while active and watch
 // that config target for valid replacements; invalid edits preserve the previous
-// last-known-good overlay. Bridge/boost process topology is defined only by trusted
-// global configuration; workspace policy may tighten an inherited definition.
+// last-known-good overlay. Command additions extend both execute_command and
+// bridge/boost spawning while the two built-in base command lists remain distinct.
 //
 // Run `mcpgate config show` to inspect the fully-merged effective config.
 // Run `mcpgate config validate` to verify this file without starting the server.
 {
   "version": "1.0.0",
 
-  // Trusted stdio MCP upstreams used by bridge and boost sessions.
-  // Bridge exposes configured upstreams only; boost also adds MCPGate tools.
+  // Trusted named stdio upstreams shared by bridge and boost. Bridge exposes only
+  // their merged MCP surface; boost adds MCPGate-owned tools. Executable topology
+  // is global/admin-owned; workspace config may select explicitly selectable
+  // definitions or tighten inherited policy.
   "boost": {
     "degradeOnUpstreamFailure": true,
-    "conflictStrategy": "error", // "error" or "local-first"
+    "conflictStrategy": "error",     // error | local-first
     "allowedEnvironmentVariables": ["PROJECT_TOKEN"],
     "upstreams": {
       "project": {
-        "enabled": true,
+        "enabled": false,             // definitions do not auto-attach unless explicitly enabled
+        "workspaceSelectable": true,  // selected workspaces may opt into this trusted definition
         "required": false,
         "command": "node",
         "args": ["server.js"],
         "cwd": ".",
         "environment": ["PROJECT_TOKEN"],
-        "startup": "eager",
+        "startup": "eager",          // eager | lazy; required upstreams must be eager
         "startupTimeoutMs": 15000,
         "requestTimeoutMs": 30000,
         "healthCheck": {
@@ -34,9 +37,92 @@
           "intervalMs": 30000,
           "timeoutMs": 5000
         }
+      },
+
+      // Remote Streamable HTTP upstream. Transport is "streamable_http";
+      // command/args/cwd are ignored. The endpoint is operator-only and
+      // never appears in client-facing routing metadata. SSRF/DNS/TLS/
+      // redirect guards are enforced at connection time by internal/netutil.
+      // AuthRef names a credential in the secret store — never inline the
+      // raw token here.
+      "remote-browser": {
+        "enabled": false,
+        "workspaceSelectable": true,
+        "required": false,
+        "transport": "streamable_http",
+        "streamableHttp": {
+          "endpoint": "https://mcp.example.com/mcp",
+          "authRef": { "name": "REMOTE_BROWSER_TOKEN" },
+          "connectTimeoutMs": 10000,
+          "requestTimeoutMs": 30000,
+          "idleTimeoutMs": 300000,
+          "disableStandaloneSSE": false
+        },
+        "startupTimeoutMs": 15000,
+        "requestTimeoutMs": 30000,
+        "healthCheck": {
+          "enabled": false
+        }
+      },
+
+      // Legacy SSE upstream. Kept for intentionally-supported legacy servers;
+      // new upstreams should prefer streamable_http.
+      "legacy-search": {
+        "enabled": false,
+        "workspaceSelectable": false,
+        "required": false,
+        "transport": "sse",
+        "sse": {
+          "endpoint": "https://legacy.example.com/sse",
+          "authRef": { "name": "LEGACY_SEARCH_TOKEN" },
+          "connectTimeoutMs": 10000
+        },
+        "startupTimeoutMs": 15000,
+        "requestTimeoutMs": 30000,
+        "healthCheck": {
+          "enabled": false
+        }
       }
     }
   },
+
+  // ── Named MCP servers ────────────────────────────────────────────────────
+  // Each named server binds one route key (/mcp/{routeKey}) to one mode,
+  // one workspace, and a set of trusted upstream references. Bare /mcp
+  // returns 404 — every connection must address a named server. Client
+  // query parameters (?workspace=, ?mode=, ?command=, ?args=, ?cwd=, ?env=,
+  // ?tools=) are rejected with 400 topology_override_forbidden.
+  //
+  // Identity changes (routeKey, mode, workspace, upstreams) bump an
+  // immutable Generation; existing sessions keep their captured snapshot
+  // until they naturally expire. A Mcp-Session-Id minted via /mcp/server-a
+  // cannot attach via /mcp/server-b.
+  //
+  // This section is optional — when absent, no named servers are published
+  // and every /mcp/{routeKey} request returns 404. The dashboard CRUD
+  // (POST /api/servers) can add servers at runtime; this file is the
+  // declarative source of truth for boot-time publication.
+  "servers": [
+    {
+      "id": "my-project",
+      "displayName": "My Project",
+      "routeKey": "my-project",
+      "enabled": true,
+      "mode": "agent",
+      "workspace": "/home/user/my-project"
+    },
+    {
+      "id": "browser",
+      "displayName": "Browser Automation",
+      "routeKey": "browser",
+      "enabled": true,
+      "mode": "boost",
+      "workspace": "/home/user/my-project",
+      "upstreams": [
+        { "name": "remote-browser", "required": true }
+      ]
+    }
+  ],
 
   // ── Runtime limits ────────────────────────────────────────────────────────
   "limits": {
@@ -58,11 +144,14 @@
       "maxSubprocess": 0,
       "maxSession": 0,
       "maxAggregate": 0,
-      "maxHost": 0
+      "maxHost": 0              // process-wide reservation ceiling; GLOBAL ONLY
     },
 
-    // Process-wide bounded fair scheduling for expensive setup and tool work.
-    // maxQueueWait is milliseconds; all fields are global-only and hot-reloaded.
+    // Process-wide bounded fair scheduling. toolConcurrency is the hard aggregate
+    // ceiling across light/medium/heavy tool work. Class-aware scheduling and a
+    // smaller heavy-class cap keep subprocess/build/test work from consuming the
+    // entire tool budget. Session setup has its own pool. All fields are global-only and hot-reloaded;
+    // maxQueueWait is milliseconds.
     "admission": {
       "toolConcurrency": 32,
       "sessionSetupConcurrency": 8,
@@ -100,9 +189,9 @@
     // execute_command defaults are basename, dirname, head, pwd, tail, which.
     "allowedCommands": [],
 
-    // Explicit additive command permissions. Global entries can permit commands
-    // referenced by trusted boost.upstreams and also extend execute_command.
-    // Workspace entries do not define or authorize new upstream topology.
+    // Explicit additive command permissions. Global and workspace entries
+    // extend both execute_command and bridge/boost spawning while preserving
+    // the distinct built-in base lists. Add "uv" to permit command=uv.
     "additionalAllowedCommands": [],
 
     // Additional path prefixes the agent may read/write.

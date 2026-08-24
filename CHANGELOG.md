@@ -7,6 +7,38 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.10.0] — 2026-08-24
+
+### Added
+
+- **Named MCP servers with clean per-server endpoints:** connect directly to `/mcp/{routeKey}` where mode, workspace, and upstreams resolve server-side. Bare `/mcp` returns a deterministic 404.
+- **Cross-server session isolation:** MCP sessions are pinned to their route key; sessions cannot attach across different server endpoints.
+- **Remote Streamable HTTP and SSE upstream transports:** connect to remote MCP upstreams alongside local stdio upstreams, with endpoint-level timeout, secret-reference authentication, and egress protection.
+- **Dashboard Named Servers management:** full web UI (`/manage/servers`) and admin API for viewing, adding, editing, validating, toggling, and gracefully draining named servers.
+- **Pluggable crash logging and panic protection:** structured crash reporting with thread-safe file, buffer, and silent logging sinks, automatic LogDir scoping, and credential sanitization.
+
+### Changed
+
+- Client topology override query parameters (`?workspace=`, `?mode=`, `?command=`, `?args=`, `?cwd=`, `?env=`, `?tools=`) on `/mcp/{routeKey}` are rejected with `400 Bad Request`.
+- Go toolchain baseline updated to **1.25.14** for official release binaries.
+- `web_fetch` adds DOM-aware primary content extraction, discussion preservation, Markdown formatting, charset decoding, and conditional caching.
+- Web dashboard enforces strict type checking and improved select dropdown behavior in modal dialogs.
+
+### Fixed
+
+- Browser OAuth authorization form submissions now complete seamlessly with third-party providers via meta refresh navigation, preventing multi-hop redirect CSP blocking.
+- Server edit dialog in the web dashboard safely handles servers with empty upstream lists without runtime errors.
+- Stateful agent connections safely reuse correlated sessions across fresh client initializations without accumulating duplicate active sessions.
+- Request cancellation and duplicate JSON-RPC request-ID cleanup release lifecycle resources deterministically.
+
+### Security
+
+- OAuth `/authorize` form redirect CSP dynamically admits registered client callback origins without wildcarding.
+- Recovered panic logs redact bearer tokens, authorization headers, and credential assignments.
+- `web_fetch` enforces public-only HTTP(S) destinations, blocking access to private, loopback, link-local, multicast, and special-use IP ranges.
+
+---
+
 ## [1.9.0] — 2026-08-20
 
 ### Added

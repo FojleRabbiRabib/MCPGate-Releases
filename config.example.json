@@ -5,23 +5,26 @@
 // workspace overlay without restarting the server.
 //
 // Cascade: built-in defaults → ~/.mcpgate/config.json → this file.
-// Workspace configs may extend explicit agent command permissions and allowed
-// paths, but cannot add or replace bridge/boost process topology. Resource and
-// configured-upstream policy may only be TIGHTENED (never loosened).
+// Workspace configs may only EXTEND explicit command permissions and allowed
+// paths; additions apply to agent execute_command and bridge/boost spawning
+// without replacing either built-in base list. Resource limits may only be
+// TIGHTENED (never loosened).
 //
 // Run `mcpgate config show` inside this workspace to inspect the merged result.
 {
   "version": "1.0.0",
 
-  // Workspace boost settings are tighten-only. The named upstream must already
-  // exist in trusted global configuration; workspace config cannot replace its
-  // executable, arguments, working directory, environment, startup, or health policy.
+  // Workspace boost policy may select explicitly selectable trusted definitions
+  // or tighten inherited policy. It cannot add/replace command, args, cwd, environment, startup, or health
+  // policy. A globally disabled definition may be enabled only when trusted
+  // global config explicitly marks it workspaceSelectable.
   "boost": {
-    "degradeOnUpstreamFailure": false,
+    "degradeOnUpstreamFailure": false, // true -> false tightens to fail-closed
     "upstreams": {
       "project": {
-        "required": true,
-        "startupTimeoutMs": 10000,
+        "enabled": true,           // opt into a trusted globally workspace-selectable definition
+        "required": true,          // optional -> required is a tightening
+        "startupTimeoutMs": 10000, // may only shorten the inherited timeout
         "requestTimeoutMs": 20000
       }
     }
@@ -29,8 +32,8 @@
 
   // ── Security extensions ────────────────────────────────────────────────
   "permissions": {
-    // Extra binaries for agent execute_command. This does not add or authorize
-    // a new bridge/boost upstream executable.
+    // Extra binaries appended to both resolved command surfaces. For example,
+    // add "uv" to permit execute_command and bridge/boost command=uv.
     "additionalAllowedCommands": [],
 
     // Appended to the global additionalAllowedPaths list (append-only).
@@ -48,6 +51,7 @@
   // ── Limit overrides ──────────────────────────────────────────────────────
   // Workspace values are tighten-only. Invalid attempts to widen inherited
   // command or execution-memory policy reject the workspace overlay.
+  // limits.admission is global-only and intentionally does not exist here.
   "limits": {
     // "maxFileSize": 5242880,    // bytes  — max readable/writable file size
     // "outputLimit": 102400,     // bytes  — per-tool output truncation threshold
@@ -58,7 +62,7 @@
     //   "maxSubprocess": 268435456,
     //   "maxSession": 536870912,
     //   "maxAggregate": 1073741824
-    //   // maxHost is global-only and cannot be set in workspace config.
+    //   // maxHost is GLOBAL ONLY; setting it here rejects the workspace overlay.
     // }
   },
 
