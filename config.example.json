@@ -39,6 +39,17 @@
     // Appended to the global additionalAllowedPaths list (append-only).
     "additionalAllowedPaths": [],
 
+    // Read-only path prefixes the agent may read but never mutate. Reads
+    // (read_file, search_files, find_files, file_stat, list_directory,
+    // get_project_structure, file_diff, read_files, archive source,
+    // unarchive source) consult this list; every write, delete, move,
+    // copy, edit, replace, insert, delete-lines, format, extraction, and
+    // command-side-effect operation stays blocked. Entries inside the
+    // workspace are enforced read-only too (a prefix also on
+    // additionalAllowedPaths stays read+write). Denied paths always take
+    // precedence over both this list and additionalAllowedPaths.
+    "additionalReadOnlyPaths": [],
+
     // Override the global enableCommandExecution toggle for this workspace.
     // Omit to inherit the global value.
     // "enableCommandExecution": true,
@@ -139,5 +150,24 @@
     // tools.allowWorkspaceConfirmOverrides. Honored by tools that perform a
     // confirmable action.
     // "confirm": { "delete_file": "always" }
+
+    // Dedicated-tool subcommand denials — extra blocked subcommands merged as
+    // a UNION on top of the global tools.denySubcommands. Additive and
+    // tighten-only: a repository-local config can block more subcommands, but
+    // there is no syntax for re-enabling a globally denied one. Shipped
+    // commented out so a copied template denies nothing until the operator
+    // opts in.
+    // "denySubcommands": {
+    //   "laravel_artisan": ["tinker"]
+    // },
+
+    // Git remote-URL host restrictions — merged as an INTERSECTION with the
+    // global tools.allowGitRemoteHosts. Tighten-only: a repository-local
+    // config can further narrow the allowed hosts but can never widen them.
+    // A workspace list disjoint from the global list fails the load instead
+    // of silently denying every host; with no global list set, a workspace
+    // list activates the policy on its own. Shipped commented out so a
+    // copied template changes nothing until the operator opts in.
+    // "allowGitRemoteHosts": ["github.com"]
   }
 }

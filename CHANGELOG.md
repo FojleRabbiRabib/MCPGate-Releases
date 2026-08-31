@@ -7,6 +7,40 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.11.0] — 2026-08-31
+
+### Added
+
+- **Active-execution live view:** real-time monitoring of in-flight built-in tool executions and proxied upstream forwards via `GET /executions`, live SSE broadcasts over `/api/events`, and an Active Executions strip on the dashboard audit page with visible overflow badges and pause-on-background tabs.
+- **Progressive, token-efficient tool output:** bounded default output pages with typed continuation cursors across `list_tasks` (25 tasks), `search_files` (50 matches), `find_files` (continuation cursor), `list_directory` (200 entries), `git_log` (25 commits), `get_project_structure` (500 entries), `read_files` (`detail=manifest`), `git_diff` (`detail=manifest` plus per-file paging), and `git_show` (`detail=summary`).
+- **Retained-result handles & `get_result` tool:** oversized batch outputs, command captures, and task exports are retained behind scope-bound expiring handles and retrieved in exact byte windows without lossy LLM summarization.
+- **Targeted memory editing (`edit_memory`):** byte-precise splice engine for updating Claude-compatible project memories with optimistic concurrency, occurrence selection, and YAML frontmatter preservation.
+- **Configurable dedicated-tool subcommand policy (`tools.denySubcommands`):** deny specific subcommands of dedicated command tools (starting with `laravel_artisan`) without disabling the parent tool; workspace overlays merge as a union.
+- **Read-only additional directory paths (`permissions.additionalReadOnlyPaths`):** grant read-only access to dependency trees (e.g. Go module cache) while blocking all write and mutating operations.
+- **Configurable git remote-URL host allowlist (`tools.allowGitRemoteHosts`):** confine git remote targets to trusted hostnames or IPv6 literals; workspace overlays merge as an intersection.
+- **Keyset audit log pagination & server-side statistics:** bidirectional cursor pagination (`first`/`prev`/`next`/`last`), configurable page sizes (25/50/100/250), URL synchronization, and server-side KPI metrics via `GET /audit/stats`.
+- **Exactly-once upstream tool-call auditing:** proxied bridge and boost tool invocations write terminal audit rows with normalized outcomes (`success`, `error`, `denied`, `rate_limited`, `cancelled`).
+
+### Changed
+
+- **Breaking:** the `read_multiple_files` tool is renamed to `read_files`. Operators must update `?tools=` allowlists and config entries referencing the old name. Input and output schemas remain unchanged.
+- List, search, diff, log, and directory tools now default to bounded pages to optimize token consumption and model response speed.
+- Dashboard Audits page replaces "Load more" with keyset pagination and server-side statistics cards.
+
+### Fixed
+
+- Tool schemas normalize reflection-inferred nullable type unions into strict-client-compatible `anyOf` branches with single-string types.
+- `batch_execute` operations input schema is declared as a nullable free-form object (`{"anyOf":[{"type":"null"},{"type":"object"}],"additionalProperties":true}`).
+- `POST /authorize` key-entry submissions are exempt from the dashboard CSRF check to prevent 403 errors during localhost OAuth flows while keeping CSRF enforced for session-backed logins; OAuth round-trip parameters are preserved on key correction.
+- Write-side path validation is strictly applied to `execute_command` CWD, image destinations, `adb_pull`/`adb_screenshot` targets, and mutating git operations.
+
+### Security
+
+- Git tool arguments are validated against option injection (`--output=`, `--receive-pack=`, `--upload-pack=`) and invalid ref formats across all git tools before subprocess execution.
+- Git remote URLs enforce safe transport protocols (`https`, `http`, `git`, `ssh`, scp-like `host:path`), blocking local `file://` references and remote helpers.
+
+---
+
 ## [1.10.0] — 2026-08-24
 
 ### Added

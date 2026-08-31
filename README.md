@@ -11,14 +11,14 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-### v1.10.0 highlights
+### v1.11.0 highlights
 
-- **Named MCP servers with `/mcp/{routeKey}`:** clean endpoints where mode, workspace, and upstreams resolve server-side with strict cross-server session isolation.
-- **Remote Streamable HTTP and SSE upstreams:** connect to remote MCP servers alongside local stdio upstreams with timeout, authentication, and egress protection.
-- **Dashboard Named Servers UI:** manage, edit, validate, enable/disable, and gracefully drain named MCP servers from `/manage/servers`.
-- **Browser OAuth compatibility:** instant meta refresh navigation prevents third-party OAuth provider redirect blocking under Content Security Policy.
-- **Pluggable crash logging & credential sanitization:** structured crash reporting with thread-safe file/buffer sinks and panic credential redaction.
-- **Enhanced `web_fetch`:** DOM-aware extraction, discussion preservation, Markdown formatting, and public-only network egress enforcement.
+- **Active-execution live view:** real-time tracking of in-flight built-in and proxied upstream tool executions via `GET /executions`, SSE broadcast over `/api/events`, and an Active Executions dashboard strip.
+- **Progressive bounded tool outputs & `get_result`:** token-efficient default pages and continuation cursors across task, search, find, directory, diff, and git log surfaces; oversized outputs are retained behind expiring handles and retrieved via `get_result`.
+- **Targeted memory editing (`edit_memory`):** byte-precise splice tool for updating Claude-compatible project memories with optimistic concurrency and YAML frontmatter preservation.
+- **Granular security & permission controls:** read-only additional directory paths (`additionalReadOnlyPaths`), dedicated subcommand deny policy (`denySubcommands`), and git remote host allowlisting (`allowGitRemoteHosts`).
+- **Keyset audit log pagination & outcome statistics:** bidirectional cursor pagination (`first`/`prev`/`next`/`last`), configurable page sizes (25/50/100/250), URL synchronization, and server-side KPI outcome statistics (`GET /audit/stats`).
+- **Tool rename (`read_files`):** `read_multiple_files` renamed to `read_files` across all surfaces.
 
 
 > ## Open-source at 1,000 stars
@@ -195,9 +195,9 @@ Login with your master API key. The dashboard provides:
 - **Overview** — server KPIs, health checks, session/admission state, and root-user warning
 - **Named Servers** — manage, edit, validate, enable/disable, and gracefully drain named MCP servers
 - **Sessions** — live session table with kill action and confirmation dialog
-- **Audits** — filterable completed tool invocation history with search, date range, severity, and clear-all
+- **Audits** — real-time Active Executions live strip, server-side KPI statistics cards, and filterable invocation history with keyset pagination (page size selector, URL sync) and clear-all
 - **Tasks** — kanban board with bulk-select, create/edit dialog, inline subtasks, dependency graph, priority, and progress
-- **Memory** — workspace-scoped Claude-compatible memory catalog, search, validation diagnostics, body-on-selection editing, and revision-safe create/update/move/delete flows
+- **Memory** — workspace-scoped Claude-compatible memory catalog, search, validation diagnostics, body-on-selection editing, and revision-safe create/update/edit/move/delete flows
 - **Settings** — key rotation, global reload, active workspace generation/validation diagnostics, rejected-reload remediation, update status, and connection state
 
 The dashboard receives live updates via SSE from `/api/events` and supports dark/light theme.

@@ -90,6 +90,11 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
 - **Command and subprocess containment:** command execution is allow-list based;
   argument policy, immutable timeout snapshots, bounded output, process-tree cleanup,
   and optional execution-memory ceilings apply to agent tools and bridge/boost work.
+  All git tool arguments are validated against option injection and invalid ref formats,
+  git remote URLs enforce safe transport protocols, and git remote destinations can be
+  strictly confined via `tools.allowGitRemoteHosts`. Dedicated tools support subcommand
+  deny policies via `tools.denySubcommands`, and read-only directory paths can be
+  enforced via `permissions.additionalReadOnlyPaths`.
 - **Trusted bridge/boost topology:** upstream processes are defined by global
   configuration. Workspace policy may tighten inherited definitions but cannot add
   new executables or widen inherited environment/startup/timeout policy.
@@ -104,6 +109,9 @@ are not patched; upgrade via `mcpgate update` to receive fixes.
   identity-pinned root with optimistic revisions and sensitive-content scanning.
   Generic filesystem tools do not gain a write path into `.mcpgate`, and audit
   records omit memory bodies and detected credential-like values.
+- **Authentication & CSRF protection:** session-backed mutating routes and OAuth
+  authorization requests require double-submit CSRF tokens; the master-key entry
+  path on `/authorize` is self-authenticating and preserves round-trip parameters on retry.
 - **Sanitized diagnostics:** public health and metrics expose aggregate or
   low-cardinality state. Authenticated operator surfaces may expose workspace
   validation details needed for remediation, but credentials, raw tool arguments,

@@ -161,6 +161,23 @@
     }
   },
 
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+  // GLOBAL ONLY — a workspace .mcpgate/config.json cannot set this; a
+  // "dashboard" block there is silently ignored.
+  //
+  // Active-execution live view on the audit page. The sanitized registry
+  // always tracks in-flight work (built-in tools and proxied upstream
+  // forwards alike); these knobs gate the dashboard-facing surfaces — the
+  // `executions` SSE event cadence and the live strip's refetch traffic.
+  // Hot-reloaded on SIGHUP, file change, and the dashboard "Reload Config"
+  // button — no restart needed.
+  "dashboard": {
+    "activeExecutions": {
+      "enabled": true,     // live Active Executions strip + `executions` SSE events
+      "intervalMs": 5000   // event cadence in milliseconds; bounded 1000–60000
+    }
+  },
+
   // ── Claude Code memory ────────────────────────────────────────────────────
   // Dedicated memory operations manage Claude project instructions/rules and
   // MCPGate's .mcpgate/memory/ store. Users may symlink that directory to
@@ -197,6 +214,20 @@
     // Additional path prefixes the agent may read/write.
     // Both global and workspace configs may contribute; the union is used.
     "additionalAllowedPaths": [],
+
+    // Read-only path prefixes the agent may read but never mutate. Reads
+    // (read_file, search_files, find_files, file_stat, list_directory,
+    // get_project_structure, file_diff, read_files, archive source,
+    // unarchive source) consult this list; every write, delete, move, copy,
+    // edit, replace, insert, delete-lines, format, extraction, and command-
+    // side-effect operation stays blocked. Entries inside the workspace are
+    // enforced read-only too (a prefix also on additionalAllowedPaths stays
+    // read+write). Useful for granting read-only access to dependency caches
+    // like /usr/share/go/pkg/mod. Denied paths always take precedence over
+    // both this list and additionalAllowedPaths. Read-only grants constrain
+    // path-taking tools; they do not sandbox executed code (python_exec,
+    // laravel_* runners, or write-capable commands on additionalAllowedCommands).
+    "additionalReadOnlyPaths": [],
 
     // Set to false to disable execute_command globally.
     // Workspace configs may also toggle this.
@@ -317,6 +348,30 @@
     "confirm": {
       "delete_file": "auto"
     },
+
+    // Dedicated-tool subcommand deny policy. Maps a command-like dedicated
+    // tool to subcommands that are always denied, so operators can block e.g.
+    // `php artisan docs` without disabling the whole tool. Entries are
+    // normalized (trimmed, lowercased) and matched exactly — denying "docs"
+    // never blocks "docs:list". Only policy-registered tools accept entries
+    // (currently laravel_artisan); anything else fails the config load.
+    // Workspace configs may only ADD denials (union) — never remove or
+    // weaken a globally denied subcommand. Shipped commented out so a copied
+    // template denies nothing until the operator opts in.
+    // "denySubcommands": {
+    //   "laravel_artisan": ["docs"]
+    // },
+
+    // Git remote-URL host allowlist. Restricts every git remote destination
+    // (git_remote add URLs and the remotes git_pull/git_push resolve) to the
+    // listed hosts. Entries are exact hostnames ("github.com") or bracketed
+    // IPv6 literals ("[2001:db8::1]"); ports and userinfo never matter and
+    // wildcards are rejected. Unset or empty = every scheme-valid host allowed
+    // (backward-compatible default). Workspace entries may only TIGHTEN
+    // (intersection) and a disjoint workspace list fails the load; malformed
+    // entries fail the load (fail-closed). Shipped commented out so a copied
+    // template allows all hosts until the operator opts in.
+    // "allowGitRemoteHosts": ["github.com", "gitlab.com"],
 
     // Whether a per-workspace .mcpgate/config.json may LOOSEN a confirmation
     // (e.g. set a destructive tool to "never"). When false (default) a workspace
