@@ -11,14 +11,14 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-### v1.11.0 highlights
+### v1.12.0 highlights
 
-- **Active-execution live view:** real-time tracking of in-flight built-in and proxied upstream tool executions via `GET /executions`, SSE broadcast over `/api/events`, and an Active Executions dashboard strip.
-- **Progressive bounded tool outputs & `get_result`:** token-efficient default pages and continuation cursors across task, search, find, directory, diff, and git log surfaces; oversized outputs are retained behind expiring handles and retrieved via `get_result`.
-- **Targeted memory editing (`edit_memory`):** byte-precise splice tool for updating Claude-compatible project memories with optimistic concurrency and YAML frontmatter preservation.
-- **Granular security & permission controls:** read-only additional directory paths (`additionalReadOnlyPaths`), dedicated subcommand deny policy (`denySubcommands`), and git remote host allowlisting (`allowGitRemoteHosts`).
-- **Keyset audit log pagination & outcome statistics:** bidirectional cursor pagination (`first`/`prev`/`next`/`last`), configurable page sizes (25/50/100/250), URL synchronization, and server-side KPI outcome statistics (`GET /audit/stats`).
-- **Tool rename (`read_files`):** `read_multiple_files` renamed to `read_files` across all surfaces.
+- **Background command execution:** `execute_command` with `background=true` returns a handle immediately and keeps long commands running detached from the connection — `get_result` reports live status, pages retained output, and cancels runaway executions.
+- **Proxy-safe streaming progress:** long tool calls emit `notifications/progress` heartbeats (2–5s) so calls survive Cloudflare and other proxies instead of dying to a gateway timeout after ~100 seconds of silence.
+- **Expanded git tool family (20 tools):** new `git_apply`, `git_fetch`, `git_tag`, `git_revert`, `git_cherry_pick`, `git_worktree`, and `git_blame`, plus staged diffs, unstage, merge abort/fast-forward policy, commit amend, ahead/behind status, and structured conflict reporting.
+- **Comprehensive `mcpgate doctor`:** 20 severity-graded checks with `--json`, `--strict`, and `--only` — database integrity, migration state, unknown config keys, version skew, crash-log scanning, and free-space probing.
+- **Resilient named servers:** optional per-server active worktree with connect-time fallback, and per-server degradation when a workspace root or remote secret drifts instead of a whole-graph startup failure.
+- **Task references that round-trip:** every task tool accepts a full UUID, sequence number, or `#seq`, with dependency-cycle guards and a one-time migration cleaning dangling references.
 
 
 > ## Open-source at 1,000 stars

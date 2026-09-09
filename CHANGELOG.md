@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.12.0] — 2026-09-09
+
+### Added
+
+- **Background command execution:** `execute_command` accepts `background=true` to start an already-validated command detached from the requesting connection and return an opaque handle immediately — a completion path for commands that outlast a proxy response window or clients without progress-token support. `get_result` resolves background handles for live lifecycle status (queued or running, with elapsed time and bytes captured so far), pages the retained output through the same handle once terminal, and stops a runaway execution with `cancel=true`; timeouts, memory budgets, allow-lists, and output limits stay enforced server-side for the full lifecycle, and graceful shutdown drains live entries instead of orphaning children.
+- **Progress heartbeats for long tool calls:** tools that can outlast a proxy's response window (command execution, git fetch/pull/push, package managers, image tools, `web_fetch`, test coverage, and more) emit `notifications/progress` heartbeats every 2–5 seconds when the client supplies a progress token, and `batch_execute` reports exactly-once per-child completion counts plus a batch-wide heartbeat on a single monotonic progress scale.
+- **Comprehensive `mcpgate doctor` diagnostics:** the five hardcoded checks are replaced by a 20-check, severity-graded registry across binary, security, database, config, and runtime — including SQLite integrity and migration-state comparison, unknown config keys (whose typos the loader silently ignores), stale tool-name entries, workspace-root availability, CLI-vs-server version skew, crash-log panic scanning, and free-space probing — with a stable `--json` report, `--strict` failure exits, `--only` subset selection, and per-check fix hints.
+- **Optional per-server active worktree:** a named server can prefer a git worktree root over its workspace; the root resolves per connection, so a worktree removed mid-flight strands no live session while new connections fall back to the workspace automatically, surfaced as a Fallback badge beside the Invalid badge on the servers page.
+- **Degraded server publication:** a removed workspace root or an unresolvable remote secret now marks one named server invalid (with a sanitized reason) instead of failing startup, reload, or dashboard mutations for every healthy server; publication re-checks the environment, so a restored root heals automatically.
+- **Stale tool-config warnings:** `tools.enabledTools`, `tools.disabledTools`, `tools.rateLimit`, and `tools.confirm` entries matching no built-in tool now produce a deterministic warning at startup and reload — a renamed tool previously disarmed its per-tool policy silently — and the dashboard Settings page renders reload warnings as a persistent alert.
+- **Expanded git tool family (20 tools):** new `git_apply` (patch to index or worktree with per-path write validation), `git_fetch` (with remote host-allowlist enforcement), `git_tag` (list/create/delete), `git_revert` and `git_cherry_pick` (with abort/skip operations and structured conflict reporting), `git_worktree` (list/add/remove/prune), and `git_blame` (line-porcelain annotation with keyset paging).
+- **Git workflow enhancements:** `git_diff` gains `staged=true` to review the pending commit, `git_checkout` gains `mode=unstage`, `git_merge` gains `op=abort`, a fast-forward policy, and structured conflict lists, `git_commit` gains `amend=true` (refused while behind upstream), `git_status` reports ahead/behind counts, and `git_branch` create accepts a `start_point`.
+
+### Fixed
+
+- Long tool calls no longer fail behind Cloudflare with a 524 gateway timeout after roughly 100 seconds of origin silence on the Streamable HTTP path: progress events now stream to the wire incrementally while a tool runs instead of buffering until the handler returns.
+- Task tools now resolve three reference shapes — full UUID, plain sequence number, and `#seq` — across every id-taking field, dependency edges are validated against cycles before writes, and `list_tasks` rows carry a UUID prefix so discovery and follow-up calls round-trip; a one-time migration removes dangling dependency references left by older versions.
+- `git_merge` conflict reporting no longer misrepresents a refused merge start (leftover unmerged paths from another operation) or a failed abort as a fresh conflict of the requested branch.
+
+---
+
 ## [1.11.0] — 2026-08-31
 
 ### Added
