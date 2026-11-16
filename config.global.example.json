@@ -132,7 +132,8 @@
     "commandTimeout": 60000,   // Subprocess fallback and hard ceiling in milliseconds
     "idleTimeout": 600000,     // Bridge session idle timeout in milliseconds (10 min)
     "shutdownTimeout": 15000,  // Graceful-shutdown wait in milliseconds
-    "maxBatchOperations": 15,  // Max operations per batch_execute call
+    "maxBatchOperations": 15,  // Max operations per batch_execute call (0 = unlimited, the default)
+    "maxBatchDuration": 0,     // Wall-clock budget in ms per batch_execute call (0 = unlimited, the default)
     "batchOutputLimit": 921600, // Batch aggregate response byte cap (900 KB)
 
     // Process-tree memory budgets in bytes. Zero means unlimited. "auto" uses
@@ -171,11 +172,20 @@
   // `executions` SSE event cadence and the live strip's refetch traffic.
   // Hot-reloaded on SIGHUP, file change, and the dashboard "Reload Config"
   // button — no restart needed.
+  //
+  // allowUpstreamEdit (default false): when true, the authenticated dashboard
+  // may create, edit, enable/disable, and delete `boost.upstreams` definitions.
+  // Defining an upstream means running a command (or reaching an endpoint) as
+  // the MCPGate user, so leave it off unless you want that. Commands must
+  // already be on your bridge/boost allow-list and environment names in
+  // `boost.allowedEnvironmentVariables`; the dashboard can edit neither list
+  // nor this flag. With it off, the Upstreams page is read-only.
   "dashboard": {
     "activeExecutions": {
       "enabled": true,     // live Active Executions strip + `executions` SSE events
       "intervalMs": 5000   // event cadence in milliseconds; bounded 1000–60000
-    }
+    },
+    "allowUpstreamEdit": false
   },
 
   // ── Claude Code memory ────────────────────────────────────────────────────
@@ -283,8 +293,20 @@
 
     // Individual TOOL NAMES to enable within their category.
     // When non-empty, only the listed tools are active inside their category.
-    // Takes precedence over disabledTools for the same name.
+    // disabledTools takes precedence for the same name.
     "enabledTools": [],
+
+    // Opt-out for MCPGate's built-in default-disabled baseline.
+    // Baseline tools are listed in the README; upstream tools are unaffected.
+    // An explicit global or workspace disabledTools entry still wins.
+    // "enabledDefaults": ["web_search", "git_push"],
+    "enabledDefaults": [],
+
+    // Global-only governance flag. When true, a workspace config may lift
+    // baseline tools through its own tools.enabledDefaults. Leave false so a
+    // cloned repository cannot turn on higher-risk built-ins (python_exec,
+    // git_push, ...). An explicit disabledTools entry still wins.
+    // "allowWorkspaceEnabledDefaults": false,
 
     // Individual TOOL NAMES to suppress even when their category is active.
     // Use this — NOT "disabled" — to remove specific tools by name.
@@ -296,7 +318,7 @@
     // independent requests and ?tools= ACL changes. Unchanged reloads preserve
     // consumed quota; a changed rate policy starts a fresh configured bucket.
     "rateLimit": {
-      "web_search":      { "requests": 20, "per": "minute" },
+      "web_fetch":       { "requests": 20, "per": "minute" },
       "execute_command": { "requests": 60, "per": "minute" }
     },
 
@@ -363,14 +385,14 @@
     // },
 
     // Git remote-URL host allowlist. Restricts every git remote destination
-    // (git_remote add URLs and the remotes git_pull/git_push resolve) to the
-    // listed hosts. Entries are exact hostnames ("github.com") or bracketed
-    // IPv6 literals ("[2001:db8::1]"); ports and userinfo never matter and
-    // wildcards are rejected. Unset or empty = every scheme-valid host allowed
-    // (backward-compatible default). Workspace entries may only TIGHTEN
-    // (intersection) and a disjoint workspace list fails the load; malformed
-    // entries fail the load (fail-closed). Shipped commented out so a copied
-    // template allows all hosts until the operator opts in.
+    // (git_remote add URLs and the remotes git_fetch/git_pull/git_push resolve)
+    // to the listed hosts. Entries are exact hostnames ("github.com") or
+    // bracketed IPv6 literals ("[2001:db8::1]"); ports and userinfo never
+    // matter and wildcards are rejected. Unset or empty = every scheme-valid
+    // host allowed (backward-compatible default). Workspace entries may only
+    // TIGHTEN (intersection) and a disjoint workspace list fails the load;
+    // malformed entries fail the load (fail-closed). Shipped commented out so
+    // a copied template allows all hosts until the operator opts in.
     // "allowGitRemoteHosts": ["github.com", "gitlab.com"],
 
     // Whether a per-workspace .mcpgate/config.json may LOOSEN a confirmation

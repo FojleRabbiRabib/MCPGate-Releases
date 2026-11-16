@@ -7,6 +7,50 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.13.0] — 2026-11-16
+
+### Added
+
+- **Dashboard upstream management:** a new **Upstreams** page and `/api/upstreams` admin API create, edit, enable/disable, delete, and test trusted `boost.upstreams` definitions (stdio, `streamable_http`, `sse`). Mutations are off by default and require the global-only `dashboard.allowUpstreamEdit` flag, which no workspace config or API call can change. Each change is validated as a whole, persisted atomically, and applied through the normal reload (a rejected reload restores the previous file). Deleting an upstream a named server references is rejected, at most 8 upstreams may be enabled at once, remote auth is exposed as `hasAuth` only, and every attempt, including ones refused while editing is off, is audit-logged with the operation, upstream name, and a fixed reason code.
+- Global-only `tools.enabledDefaults` opt-out re-enables individual tools from MCPGate's built-in default-disabled baseline without turning off the rest of their category or altering `tools.disabledTools` precedence.
+- `mcpgate doctor` gains the `tool-defaults` check (how many of the 38 default-disabled built-in tools are active-off and which names are lifted) and the `batch-policy` check (the effective batch limits).
+- Name-keyed config warnings (`tools.enabledTools`, `tools.enabledDefaults`, `tools.disabledTools`, `tools.rateLimit`, `tools.confirm`) now surface unknown `enabledDefaults` entries, non-baseline entries with no effect, `enabledDefaults` / `disabledTools` conflicts where explicit disables win, entries targeting an unlifted baseline built-in, and a workspace `enabledDefaults` list that is ignored because the global flag is off.
+- `limits.maxBatchDuration` (global) and a tighten-only workspace override bound the wall-clock time of a single `batch_execute` call. Zero, the default, means unlimited. Operations skipped or cut short carry a `termination_reason` (`time_budget` or `cancellation`), and `mcpgate_batch_termination_total{reason}` counts batches rejected for exceeding the operation cap or stopped early.
+- Workspace configuration may introduce or lower `limits.maxBatchOperations`; it can never raise or remove an inherited cap.
+- The dashboard Memory page has a server picker that loads the root a named server serves (its active worktree while in use, otherwise its workspace); entering an absolute path manually still works.
+- Audit durations are shown in a human-friendly format.
+
+### Changed
+
+- **Breaking:** 38 rarely-used built-in tools are now disabled by default — Android/ADB (`adb_devices`, `adb_install`, `adb_logcat`, `adb_pull`, `adb_push`, `adb_screenshot`, `adb_shell`), package/build executors (`bundle_install`, `cargo_run`, `composer_install`, `go_get`, `go_mod_tidy`, `gradle_build`, `list_python_packages`, `mvn_build`, `npm_install`, `npm_outdated`, `npm_uninstall`, `pip_install`, `python_exec`), image/archive tools (`archive`, `convert_image`, `crop_image`, `image_info`, `image_optimize`, `image_thumbnail`, `resize_image`, `unarchive`), remote/history-mutating git verbs (`git_cherry_pick`, `git_fetch`, `git_pull`, `git_push`, `git_remote`, `git_revert`, `git_stash`, `git_tag`, `git_worktree`), and `web_search`. Re-enable individual typed tools in global config via `tools.enabledDefaults` rather than adding raw binaries to `permissions.additionalAllowedCommands`. Upstream (bridge/boost) tools with the same name are unaffected and no longer trigger a name-conflict error against a default-disabled built-in.
+- **Breaking:** workspace `tools.disabledTools` now unions with (adds to) the global list instead of replacing it, so a repository-local config can add disables but can never erase an operator's global disable.
+- **Breaking:** workspace tool selection can no longer loosen global deny lists or a global category cap. `tools.disabled` unions with the global list; `tools.enabledTools` is intersected with a non-empty global allowlist (a disjoint result invalidates the workspace config instead of widening it); a workspace may choose any `tools.mode` (`auto`, `all` or `manual`), but a global `manual` mode is a ceiling — a workspace `all` or `auto` keeps the global category list and a workspace `manual` list is intersected with it; any other mode value invalidates the workspace config and the last-known-good policy stays active. A workspace `tools.enabledDefaults` list lifts default-off built-ins only when the global config sets the new `tools.allowWorkspaceEnabledDefaults` flag (default `false`); an explicit `disabledTools` entry still wins. Global and workspace `enabledTools` are now trimmed, deduplicated, and sorted, and a non-empty `enabledTools` list containing only blank names is rejected instead of silently becoming unrestricted. A global reload that would make an active workspace's tool policy invalid is rejected as a whole, like other incompatible workspace policy. `tools.forceProjectTypes` remains a workspace override.
+- Dashboard server Validate now reports an invalid workspace config as `workspace_config_invalid` with the policy message (workspace paths masked) instead of the generic `connectivity_probe_failed`.
+- `limits.maxBatchOperations` now defaults to unlimited (`0`) instead of 15, and negative values are rejected at load time. Safety continues to rely on tool timeouts, output limits, admission control, and memory protections; set a positive value to enforce a fixed cap.
+- `batch_execute` audit rows for early-terminated batches record `skipped` and the termination reason, and are written even after the batch's own time budget has expired.
+
+### Fixed
+
+- Session lifecycle: idle expiry uses a monotonic timer, bridge sessions fall back to their last activity, standalone GET streams count as activity, a reservation honors the stricter of the live and caller limits, and negative `limits.maxSessions` is rejected at load.
+- Configuration reload is atomic: a replacement is validated before any live state changes, boost tools route through the live dispatcher, and the agent reload no longer risks a recursive lock deadlock.
+- Streamable HTTP: oversize request bodies get `413` instead of being truncated, sessionless non-initialize requests are rejected before any session or subprocess is reserved, buffered responses and subprocess stderr are bounded, and upstream list errors fail closed.
+- Background command execution: deadlines, retention, and status reporting are reliable, live `get_result` polls render their status text, and a caller's own still-running call is named in `queue_timeout` rejections.
+- Tools: `move_file` requires `overwrite=true` before replacing an existing destination, `delete_memory` asks for the same confirmation as the other deletion tools, `find_files` no longer leaks an extra entry with `has_more=false`, `search_files` guards its argument vector and excludes archive temp files, and batch results disambiguate nested operations and report confirmation-capacity errors.
+- Memory: recovery is serialized across processes, uncreated instruction paths resolve, the recovery quarantine is pruned by count and age, orphaned temp files are cleaned, and Claude front matter is preserved.
+- Dashboard: SSE reconnect resumes after a terminal close, task dialogs keep their form across subtask edits, polling treats URL changes as loading transitions, and several progress-input and button-spinner edge cases are fixed.
+
+### Security
+
+- Argument blocklist now catches clustered and attached GNU short options, and systemd unit paths are escaped.
+- Path validation folds case when matching denied sub-directories and prefixes.
+- `X-Forwarded-For` is walked right to left behind trusted proxies, and public dashboard mode fails closed on invalid peer configuration.
+- OAuth tokens are no longer persisted in plaintext, the backup directory is protected, refresh-token family revocation is enforced, and JWKS failures are negatively cached.
+- The admin socket is bound without a process-wide umask, discovery files are validated, and login attempts are rate-limited.
+- Release-asset downloads validate the URL host and scheme, and upstream redirects are pinned to the previous hop.
+- Go is bumped to 1.26.11 with patched dependencies.
+
+---
+
 ## [1.12.0] — 2026-09-09
 
 ### Added

@@ -11,14 +11,14 @@ proprietary license, and user documentation for **MCPGate** — an enterprise-gr
 MCP bridge and agent server written in Go. Each release page uses the matching
 version section from [`CHANGELOG.md`](CHANGELOG.md).
 
-### v1.12.0 highlights
+### v1.13.0 highlights
 
-- **Background command execution:** `execute_command` with `background=true` returns a handle immediately and keeps long commands running detached from the connection — `get_result` reports live status, pages retained output, and cancels runaway executions.
-- **Proxy-safe streaming progress:** long tool calls emit `notifications/progress` heartbeats (2–5s) so calls survive Cloudflare and other proxies instead of dying to a gateway timeout after ~100 seconds of silence.
-- **Expanded git tool family (20 tools):** new `git_apply`, `git_fetch`, `git_tag`, `git_revert`, `git_cherry_pick`, `git_worktree`, and `git_blame`, plus staged diffs, unstage, merge abort/fast-forward policy, commit amend, ahead/behind status, and structured conflict reporting.
-- **Comprehensive `mcpgate doctor`:** 20 severity-graded checks with `--json`, `--strict`, and `--only` — database integrity, migration state, unknown config keys, version skew, crash-log scanning, and free-space probing.
-- **Resilient named servers:** optional per-server active worktree with connect-time fallback, and per-server degradation when a workspace root or remote secret drifts instead of a whole-graph startup failure.
-- **Task references that round-trip:** every task tool accepts a full UUID, sequence number, or `#seq`, with dependency-cycle guards and a one-time migration cleaning dangling references.
+- **Manage upstreams from the dashboard:** a new Upstreams page creates, edits, enables, deletes, and tests trusted `boost.upstreams` definitions (stdio, `streamable_http`, `sse`). Off by default behind the global-only `dashboard.allowUpstreamEdit` flag; every edit is validated whole, saved atomically, and rolled back if the reload is rejected.
+- **Safer defaults (breaking):** 38 rarely-used built-in tools (ADB, package installers, image/archive tools, remote git verbs, `python_exec`, `web_search`) are now off by default. Re-enable individual ones with the global `tools.enabledDefaults`.
+- **Workspace config can only tighten (breaking):** a repository-local config can add tool disables and narrow allowlists but can no longer loosen global deny lists or a global category cap.
+- **Batch limits you control:** `limits.maxBatchOperations` now defaults to unlimited, and the new `limits.maxBatchDuration` bounds a batch's wall-clock time, with termination reasons on skipped operations.
+- **Hardened sessions and transport:** atomic config reload, stricter session limits, bounded request and response buffers, and a broad security pass over path, argument, OAuth, proxy-header, and admin-socket handling.
+- **Doctor and dashboard polish:** new `tool-defaults` and `batch-policy` doctor checks, a server picker on the Memory page, human-friendly audit durations, and clearer workspace-config errors.
 
 
 > ## Open-source at 1,000 stars

@@ -67,6 +67,8 @@
     // "maxFileSize": 5242880,    // bytes  — max readable/writable file size
     // "outputLimit": 102400,     // bytes  — per-tool output truncation threshold
     // "commandTimeout": 30000,   // ms     — subprocess fallback and hard ceiling
+    // "maxBatchOperations": 10,  // count  — tighten-only, must not exceed global cap
+    // "maxBatchDuration": 15000, // ms     — tighten-only wall-clock budget, must not exceed global cap
     // "batchOutputLimit": 524288, // bytes — batch_execute aggregate response cap
     // "executionMemory": {
     //   "enforcement": "hard-required", // may only strengthen inherited posture
@@ -92,13 +94,17 @@
 
   // ── Tool overrides ────────────────────────────────────────────────────────
   "tools": {
-    // Override the global tool activation mode for this workspace.
+    // Tool activation mode for this workspace. A workspace may choose any mode,
+    // but a global "manual" mode is a ceiling: "all" or "auto" then keep the
+    // global category list instead of widening it. An unknown mode makes the
+    // workspace config invalid.
     // "auto"   — activate categories inferred from project-type detection
     // "all"    — activate every tool category
     // "manual" — activate only the categories listed in "enabled"
     // "mode": "auto",
 
-    // Tool CATEGORIES to enable (only when mode = "manual").
+    // Tool CATEGORIES to enable (only when the effective mode is "manual").
+    // Under a global "manual" mode this is intersected with the global list.
     // Known values: android, batch, commands, filesystem, formatting, git,
     //               images, laravel, memory, ml, package_manager, project,
     //               tasks, testing, web
@@ -113,15 +119,22 @@
     //               react, vue, angular, php, dotnet, cpp, bash, generic
     // "forceProjectTypes": ["go"],
 
-    // Individual TOOL NAMES to enable within their category.
-    // When non-empty, only the listed tools are active inside their category.
-    // Takes precedence over disabledTools for the same name.
+    // Individual TOOL NAMES allowlist. When non-empty, only the listed tools
+    // are active. With a non-empty global list the two are intersected; an
+    // empty intersection makes the workspace config invalid.
+    // disabledTools takes precedence for the same name.
     // "enabledTools": ["read_file", "write_file", "git_status"],
+
+    // Lift default-off built-ins for this workspace. Honored only when the
+    // global config sets tools.allowWorkspaceEnabledDefaults; an explicit
+    // disabledTools entry still wins.
+    // "enabledDefaults": ["web_search"],
 
     // Individual TOOL NAMES to suppress even when their category is active.
     // THIS is the correct field for disabling specific tools by name.
+    // Workspace entries add to the global list; they cannot remove global disables.
     // Do NOT put tool names under "disabled" — that field is for categories only.
-    // "disabledTools": ["git_push", "git_merge", "run_tests", "web_search"],
+    // "disabledTools": ["find_files"],
 
     // Tighten inherited subprocess budgets for this workspace. Values are
     // milliseconds. A workspace value must be no greater than the currently
