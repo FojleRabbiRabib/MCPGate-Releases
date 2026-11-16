@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# pre-push: block the push unless branches and tags are in sync with the remote.
+# Args: $1 = remote name, $2 = remote URL. Stdin: "<lref> <lsha> <rref> <rsha>" lines.
+set -u
+
+remote="$1"
+url="$2"
+zero="0000000000000000000000000000000000000000"
+fail=0
+notes=()
+
+block() { echo "pre-push: BLOCKED - $*" >&2; fail=1; }
+
+if ! git fetch --tags --quiet "$remote" 2>/dev/null; then
+  block "cannot fetch from '$remote'; refusing to push blind"
+fi
+
+while read -r _ lsha rref rsha; do
+  [ "$lsha" = "$zero" ] && { notes+=("delete $rref"); continue; }
+  case "$rref" in
+    refs/tags/*)
+      tag="${rref#refs/tags/}"
+      if [ "$rsha" != "$zero" ] && [ "$rsha" != "$lsha" ]; then
+        block "tag $tag already exists on the remote at a different commit"
+      else
+        notes+=("tag $tag")
+      fi ;;
+    refs/heads/*)
+      branch="${rref#refs/heads/}"
+      tracking="refs/remotes/$remote/$branch"
+      if git rev-parse --verify -q "$tracking" >/dev/null; then
+        if ! git merge-base --is-ancestor "$tracking" "$lsha"; then
+          block "$branch is behind or diverged from $remote/$branch"
+        else
+          notes+=("$branch: $(git rev-list --count "$tracking..$lsha") commit(s)")
+        fi
+      else
+        notes+=("$branch: new branch")
+      fi ;;
+  esac
+done
+
+echo "pre-push summary for $remote ($url):" >&2
+for n in "${notes[@]}"; do echo "  - $n" >&2; done
+exit "$fail"
